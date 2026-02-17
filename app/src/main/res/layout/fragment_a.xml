@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical">
+    <LinearLayout
+        android:id="@+id/abc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+
+        android:gravity="center"
+
+        android:orientation="horizontal">
+
+    <TextView
+        android:id="@+id/headingName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:text="Weighment Entry"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/abc1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/serialNo"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+
+            android:text="Serial No."/>
+
+        <EditText
+            android:id="@+id/serialEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="serial no"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/abc9"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/vehicleNo"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Vehicle No."/>
+
+        <EditText
+            android:id="@+id/vehicleNoEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="Vehicle no"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/abc2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/vehicleType"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Vehicle Type"/>
+
+        <EditText
+            android:id="@+id/vehicleEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+
+            android:background="@drawable/edittext_box"
+            android:hint="vehicle type"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/abc3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/materialN"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Material"/>
+
+        <EditText
+            android:id="@+id/materialEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="material"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/abc4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/partyName"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Party"/>
+
+        <EditText
+            android:id="@+id/partyEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="party"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/abc5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/chargeName"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Charge"/>
+
+        <EditText
+            android:id="@+id/chargeEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="charge"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/abc6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="1"
+
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/buttonT"
+            style="@style/CircleButton"
+            android:text="T"
+            android:background="@drawable/circle_button_bg_a"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/buttonG"
+            style="@style/CircleButton"
+            android:text="G"
+            android:background="@drawable/circle_button_bg_a"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/buttonM"
+            style="@style/CircleButton"
+            android:text="M"
+            android:background="@drawable/circle_button_bg_a"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/abc7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/grossName"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Gross"/>
+
+        <EditText
+            android:id="@+id/grossEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="gross"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/abc8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:gravity="center"
+        android:weightSum="2"
+        android:layout_marginLeft="@dimen/margin_18dp"
+        android:layout_marginRight="@dimen/margin_18dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tareName"
+            android:layout_width="@dimen/textViewWidthdp"
+            android:layout_height="wrap_content"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_gravity="left|center"
+            android:gravity="left|center"
+            android:layout_weight="1"
+            android:text="Tare"/>
+
+        <EditText
+            android:id="@+id/tareEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edittext_box"
+            android:hint="tare"
+            android:textColor="#000000"
+            android:textColorHint="#888888"
+            android:layout_weight="1"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/abc0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="9dp"
+
+        android:gravity="center"
+
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button4a"
+            style="@style/NormalButton"
+            android:text="Save"
+
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button5a"
+            style="@style/NormalButton"
+            android:text="Print"
+
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+    </LinearLayout>
+
+</LinearLayout>

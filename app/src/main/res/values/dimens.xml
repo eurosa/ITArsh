@@ -1,0 +1,90 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+    <dimen name="text_margin">16dp</dimen>
+    <dimen name="text_margin_nested">26dp</dimen>
+    <dimen name="nav_header_vertical_spacing">8dp</dimen>
+    <dimen name="nav_header_height">176dp</dimen>
+    <dimen name="textSize">12sp</dimen>
+    <dimen name="_86dp">86dp</dimen>
+
+
+
+        <!-- Base dimensions -->
+        <dimen name="tiny_padding">1dp</dimen>
+        <dimen name="small_padding">1dp</dimen>
+        <dimen name="medium_padding">8dp</dimen>
+        <dimen name="large_padding">16dp</dimen>
+        <dimen name="extra_large_padding">24dp</dimen>
+
+        <!-- Divider -->
+        <dimen name="divider_height">2dp</dimen>
+
+        <!-- Toolbar -->
+        <dimen name="toolbar_padding">8dp</dimen>
+        <dimen name="toolbar_logo_size">48dp</dimen>
+        <dimen name="toolbar_icon_size">24dp</dimen>
+
+        <!-- Controls -->
+        <dimen name="control_button_size">36dp</dimen>
+        <dimen name="control_button_large">51dp</dimen>
+        <dimen name="light_button_size">48dp</dimen>
+
+        <!-- Cards -->
+        <dimen name="card_corner_radius">8dp</dimen>
+        <dimen name="card_elevation">4dp</dimen>
+        <dimen name="card_spacing">2dp</dimen>
+        <dimen name="control_card_height">100dp</dimen>
+
+        <!-- Sections -->
+        <dimen name="time_section_height">100dp</dimen>
+
+        <!-- Icons -->
+        <dimen name="icon_size_medium">32dp</dimen>
+        <dimen name="icon_size_large">48dp</dimen>
+
+        <!-- Gas Alarms -->
+        <dimen name="gas_status_min_width">80dp</dimen>
+        <dimen name="gas_status_padding">8dp</dimen>
+
+        <!-- Font Sizes - Phone (default) -->
+        <dimen name="tiny_text">10sp</dimen>
+        <dimen name="small_text">12sp</dimen>
+        <dimen name="medium_text">14sp</dimen>
+        <dimen name="normal_text">16sp</dimen>
+        <dimen name="large_text">18sp</dimen>
+        <dimen name="extra_large_text">27sp</dimen>
+
+        <!-- Component Specific Font Sizes - Phone -->
+        <dimen name="toolbar_title_text">18sp</dimen>
+        <dimen name="large_time_text">36sp</dimen>
+        <dimen name="card_title_text">14sp</dimen>
+        <dimen name="large_value_text">32sp</dimen>
+        <dimen name="unit_text">24sp</dimen>
+        <dimen name="section_title_text">18sp</dimen>
+        <dimen name="gas_label_text">14sp</dimen>
+        <dimen name="gas_status_text">14sp</dimen>
+        <dimen name="light_label_text">16sp</dimen>
+        <dimen name="switch_label_text">16sp</dimen>
+        <dimen name="switch_text">14sp</dimen>
+    <dimen name="_90dp">90dp</dimen>
+    <dimen name="switch_width">150dp</dimen>
+    <dimen name="switch_height">51dp</dimen>
+    <dimen name="data_text_size">90sp</dimen>
+    <dimen name="image_width">33dp</dimen>
+    <dimen name="image_height">33dp</dimen>
+    <dimen name="margin_set_hs">6dp</dimen>
+    <dimen name="in_de_button">45dp</dimen>
+    <dimen name="hum_temp_panel">81dp</dimen>
+    <dimen name="tem_hum_text_size">45sp</dimen>
+    <dimen name="pl_st_res_size">45dp</dimen>
+    <dimen name="margin_18dp">18dp</dimen>
+    <dimen name="textViewWidthdp">600dp</dimen>
+
+    <!-- Integer for responsive grid -->
+        <integer name="gas_alarm_columns">3</integer>
+
+
+</resources>

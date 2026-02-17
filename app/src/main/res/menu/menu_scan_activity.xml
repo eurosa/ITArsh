@@ -1,0 +1,10 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools" tools:context=".ScanActivity">
+    <item android:id="@+id/back"
+        android:icon="@drawable/ic_share"
+        android:orderInCategory="100"
+        app:showAsAction="always"
+        android:title="Share" />
+
+</menu>

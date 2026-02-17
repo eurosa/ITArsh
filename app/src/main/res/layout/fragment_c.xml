@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical">
+    <LinearLayout
+        android:id="@+id/abc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="9dp"
+
+        android:gravity="center"
+
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button1c"
+            style="@style/CircleButton"
+            android:text="6"
+            android:background="@drawable/circle_button_bg_c"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button2c"
+            style="@style/CircleButton"
+            android:text="7"
+            android:background="@drawable/circle_button_bg_c"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button3c"
+            style="@style/CircleButton"
+            android:text="8"
+            android:background="@drawable/circle_button_bg_c"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+    </LinearLayout>
+
+
+
+</LinearLayout>

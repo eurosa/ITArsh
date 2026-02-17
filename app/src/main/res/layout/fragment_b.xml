@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical">
+    <LinearLayout
+        android:id="@+id/abc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="9dp"
+
+        android:gravity="center"
+
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button1b"
+            style="@style/CircleButton_b"
+            android:text="1"
+            android:background="@drawable/circle_button_bg_b"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button2b"
+            style="@style/CircleButton_b"
+            android:text="2"
+            android:background="@drawable/circle_button_bg_b"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button3b"
+            style="@style/CircleButton_b"
+            android:text="3"
+            android:background="@drawable/circle_button_bg_b"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/abc1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="9dp"
+
+        android:gravity="center"
+
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button4b"
+            style="@style/CircleButton_b"
+            android:text="4"
+            android:background="@drawable/circle_button_bg_b"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/button5b"
+            style="@style/CircleButton_b"
+            android:text="5"
+            android:background="@drawable/circle_button_bg_b"
+            android:backgroundTint="@null"
+            app:backgroundTint="@null"/>
+
+    </LinearLayout>
+
+</LinearLayout>
