@@ -51,7 +51,7 @@ public class BFragment extends Fragment {
                 txBuffer[6] = (byte) '1';
                 txBuffer[7] = (byte) ';';
 
-                mainActivity.bluetoothManager.sendControllerData(txBuffer);
+
             }
         });
 
@@ -73,7 +73,7 @@ public class BFragment extends Fragment {
                 txBuffer[6] = (byte) '2';
                 txBuffer[7] = (byte) ';';
 
-                mainActivity.bluetoothManager.sendControllerData(txBuffer);
+
             }
         });
 
@@ -95,7 +95,7 @@ public class BFragment extends Fragment {
                 txBuffer[6] = (byte) '3';
                 txBuffer[7] = (byte) ';';
 
-                mainActivity.bluetoothManager.sendControllerData(txBuffer);
+
             }
         });
 
@@ -117,7 +117,7 @@ public class BFragment extends Fragment {
                 txBuffer[6] = (byte) '4';
                 txBuffer[7] = (byte) ';';
 
-                mainActivity.bluetoothManager.sendControllerData(txBuffer);
+
             }
         });
 
@@ -139,7 +139,7 @@ public class BFragment extends Fragment {
                 txBuffer[6] = (byte) '5';
                 txBuffer[7] = (byte) ';';
 
-                mainActivity.bluetoothManager.sendControllerData(txBuffer);
+
             }
         });
 

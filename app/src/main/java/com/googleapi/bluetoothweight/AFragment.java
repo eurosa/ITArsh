@@ -28,7 +28,8 @@ public class AFragment extends Fragment {
     private DatabaseHelper databaseHelper;
 
     // Button references for T, G, M
-    private AppCompatButton buttonT, buttonG, buttonM;
+    private AppCompatButton buttonT, buttonG;
+    private MainActivity mainActivity;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -36,6 +37,7 @@ public class AFragment extends Fragment {
 
         // Initialize DatabaseHelper
         databaseHelper = new DatabaseHelper(getActivity());
+        mainActivity = (MainActivity) getActivity();
 
         // Initialize views
         initViews(view);
@@ -71,14 +73,10 @@ public class AFragment extends Fragment {
 
         buttonT = view.findViewById(R.id.buttonT);
         buttonG = view.findViewById(R.id.buttonG);
-        buttonM = view.findViewById(R.id.buttonM);
 
         // Make serialEditText non-editable (auto-generated)
         serialEditText.setFocusable(false);
         serialEditText.setClickable(false);
-
-        // You may need to add this TextView in your layout for displaying net weight
-        // txtNetWeight = view.findViewById(R.id.txtNetWeight);
     }
 
     private void generateNextSerialNumber() {
@@ -148,29 +146,44 @@ public class AFragment extends Fragment {
         buttonT.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Handle T button click
                 Toast.makeText(getActivity(), "T button clicked", Toast.LENGTH_SHORT).show();
-                // You can implement specific functionality for T
+                if (mainActivity != null && mainActivity.txtCounter != null) {
+                    tareEditText.setText(mainActivity.txtCounter.getText());
+                }
             }
         });
 
         buttonG.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Handle G button click
                 Toast.makeText(getActivity(), "G button clicked", Toast.LENGTH_SHORT).show();
-                // You can implement specific functionality for G
+                if (mainActivity != null && mainActivity.txtCounter != null) {
+                    grossEditText.setText(mainActivity.txtCounter.getText());
+                }
             }
         });
+    }
 
-        buttonM.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Handle M button click
-                Toast.makeText(getActivity(), "M button clicked", Toast.LENGTH_SHORT).show();
-                // You can implement specific functionality for M
-            }
-        });
+    /**
+     * Method to perform T button action (called from MainActivity)
+     */
+    public void performTButtonAction() {
+        // Same logic as button T click
+        Toast.makeText(getActivity(), "T button pressed via keyboard", Toast.LENGTH_SHORT).show();
+        if (mainActivity != null && mainActivity.txtCounter != null) {
+            tareEditText.setText(mainActivity.txtCounter.getText());
+        }
+    }
+
+    /**
+     * Method to perform G button action (called from MainActivity)
+     */
+    public void performGButtonAction() {
+        // Same logic as button G click
+        Toast.makeText(getActivity(), "G button pressed via keyboard", Toast.LENGTH_SHORT).show();
+        if (mainActivity != null && mainActivity.txtCounter != null) {
+            grossEditText.setText(mainActivity.txtCounter.getText());
+        }
     }
 
     private void setupActionButtons() {
@@ -225,7 +238,7 @@ public class AFragment extends Fragment {
         entry.setManualTare(manualTare);
         entry.calculateNet();
 
-        // Check if serial exists (should not happen with auto-generated numbers, but just in case)
+        // Check if serial exists
         boolean exists = databaseHelper.isSerialNoExists(serialNo);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
@@ -243,19 +256,15 @@ public class AFragment extends Fragment {
             public void onClick(DialogInterface dialog, int which) {
                 long result;
                 if (exists) {
-                    // Update existing entry
                     result = databaseHelper.updateWeighment(entry);
                     if (result > 0) {
                         Toast.makeText(getActivity(), "Entry #" + serialNo + " updated successfully", Toast.LENGTH_SHORT).show();
-                        // Clear all fields after update
                         clearAllFields();
                     }
                 } else {
-                    // Insert new entry
                     result = databaseHelper.insertWeighment(entry);
                     if (result > 0) {
                         Toast.makeText(getActivity(), "Entry #" + serialNo + " saved successfully", Toast.LENGTH_SHORT).show();
-                        // Clear all fields after save
                         clearAllFields();
                     }
                 }
@@ -269,7 +278,6 @@ public class AFragment extends Fragment {
         builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                // User canceled, do nothing
                 dialog.dismiss();
             }
         });
@@ -322,12 +330,12 @@ public class AFragment extends Fragment {
         printContent.append("Party: ").append(party).append("\n");
         printContent.append("Charge: ").append(charge).append("\n");
         printContent.append("Gross Weight: ").append(gross).append(" kg\n");
-        printContent.append("Manaul TareWeight: ").append(manualTare).append(" kg\n");
+        printContent.append("Manual Tare Weight: ").append(manualTare).append(" kg\n");
         printContent.append("Tare Weight: ").append(tare).append(" kg\n");
         printContent.append("Net Weight: ").append(entry.getNet()).append(" kg\n");
         printContent.append("==========================");
 
-        // Show print dialog with Save option
+        // Show print dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Print Preview");
         builder.setMessage(printContent.toString());
@@ -335,7 +343,6 @@ public class AFragment extends Fragment {
         builder.setPositiveButton("Print & Save", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                // Save the entry
                 boolean exists = databaseHelper.isSerialNoExists(serialNo);
                 long result;
 
@@ -347,11 +354,7 @@ public class AFragment extends Fragment {
 
                 if (result > 0) {
                     Toast.makeText(getActivity(), "Entry #" + serialNo + " saved and printing", Toast.LENGTH_SHORT).show();
-                    // Implement actual printing functionality here
-                    // For now, just show a message
                     Toast.makeText(getActivity(), "Printing...", Toast.LENGTH_SHORT).show();
-
-                    // Clear all fields after print and save
                     clearAllFields();
                 } else {
                     Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();
@@ -369,7 +372,6 @@ public class AFragment extends Fragment {
         builder.setNeutralButton("Save Only", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                // Save without printing
                 boolean exists = databaseHelper.isSerialNoExists(serialNo);
                 long result;
 
@@ -381,7 +383,6 @@ public class AFragment extends Fragment {
 
                 if (result > 0) {
                     Toast.makeText(getActivity(), "Entry #" + serialNo + " saved successfully", Toast.LENGTH_SHORT).show();
-                    // Clear all fields after save
                     clearAllFields();
                 } else {
                     Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();

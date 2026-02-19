@@ -37,6 +37,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.io.Closeable;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -219,7 +220,7 @@ public class BluetoothController implements Closeable {
      * @param device the device to pair with.
      * @return true if the pairing was successful, false otherwise.
      */
-    public boolean pair(BluetoothDevice device) {
+  /*  public boolean pair(BluetoothDevice device) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
                     != PackageManager.PERMISSION_GRANTED) {
@@ -244,7 +245,7 @@ public class BluetoothController implements Closeable {
             this.boundingDevice = device;
         }
         return outcome;
-    }
+    }*/
 
     /**
      * Checks if a device is already paired.
@@ -373,7 +374,49 @@ public class BluetoothController implements Closeable {
             }
         }
     }
+    public boolean pair(BluetoothDevice device) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                // For Android 4.4+
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_ADMIN) != PackageManager.PERMISSION_GRANTED) {
+                    Log.e(TAG, "BLUETOOTH_ADMIN permission not granted");
+                    return false;
+                }
 
+                // Method 1: Using createBond()
+                boolean bondCreated = device.createBond();
+                if (bondCreated) {
+                    Log.d(TAG, "Pairing started successfully with createBond()");
+                    return true;
+                }
+
+                // Method 2: Using reflection if createBond() fails
+                try {
+                    Method method = device.getClass().getMethod("createBond");
+                    Boolean result = (Boolean) method.invoke(device);
+                    Log.d(TAG, "Pairing result using reflection: " + result);
+                    return result;
+                } catch (Exception e) {
+                    Log.e(TAG, "Error pairing device using reflection", e);
+                    return false;
+                }
+            } else {
+                // For older Android versions
+                try {
+                    Method method = device.getClass().getMethod("createBond");
+                    Boolean result = (Boolean) method.invoke(device);
+                    Log.d(TAG, "Pairing result: " + result);
+                    return result;
+                } catch (Exception e) {
+                    Log.e(TAG, "Error pairing device", e);
+                    return false;
+                }
+            }
+        } catch (SecurityException e) {
+            Log.e(TAG, "Security exception while pairing", e);
+            return false;
+        }
+    }
     /**
      * Returns the status of the current pairing and cleans up the state if the pairing is done.
      *

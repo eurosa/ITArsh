@@ -80,8 +80,10 @@
     <dimen name="hum_temp_panel">81dp</dimen>
     <dimen name="tem_hum_text_size">45sp</dimen>
     <dimen name="pl_st_res_size">45dp</dimen>
-    <dimen name="margin_18dp">18dp</dimen>
+    <dimen name="margin_18dp">9dp</dimen>
     <dimen name="textViewWidthdp">600dp</dimen>
+    <dimen name="_18sp">24sp</dimen>
+    <dimen name="_600dp">300dp</dimen>
 
     <!-- Integer for responsive grid -->
         <integer name="gas_alarm_columns">3</integer>

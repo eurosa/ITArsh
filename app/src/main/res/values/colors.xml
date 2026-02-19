@@ -10,4 +10,5 @@
     <color name="babyBlue">#7ec8e3</color>
     <color name="ic_launcher_background">#0A8754</color>
     <color name="adFilling">#333333</color>
+    <color name="background_dark">#F5F5F5</color>
 </resources>
