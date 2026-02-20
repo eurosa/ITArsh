@@ -14,4 +14,5 @@
     <string name="bluetooth_not_available_title">Bluetooth not available</string>
     <string name="empty_list_message">No nearby devices found. Tap on the bottom-right button to start a new device discovery.</string>
     <string name="save_print"><![CDATA[Save&Print]]></string>
+    <string name="update_print"><![CDATA[Update&Print]]></string>
 </resources>

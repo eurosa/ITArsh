@@ -15,7 +15,7 @@ import java.util.Arrays;
 
 public class BFragment extends Fragment {
 
-    private AppCompatButton button1b,button2b,button3b,button4b,button5b;
+    private AppCompatButton  button4a,button5a;
     private TextView txtDisplayTwoView;
 
     @SuppressLint("MissingInflatedId")
@@ -23,121 +23,31 @@ public class BFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         //return inflater.inflate(R.layout.fragment_train_main, container, false);
         View view = inflater.inflate(R.layout.fragment_b, container, false);
-        button1b = view.findViewById(R.id.button1b);
-        button2b = view.findViewById(R.id.button2b);
-        button3b = view.findViewById(R.id.button3b);
-        button4b = view.findViewById(R.id.button4b);
-        button5b = view.findViewById(R.id.button5b);
 
+        button4a = view.findViewById(R.id.button4a);
+        button5a = view.findViewById(R.id.button5a);
+        button5a.setVisibility(View.GONE);
 
         MainActivity mainActivity = (MainActivity) getActivity();
 
 
-        button1b.setOnClickListener(new View.OnClickListener() {
+
+
+        button4a.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
 
-                setMainTextViewData(txtDisplayTwoView, "-1");
-                byte[] txBuffer = new byte[8];
-                Arrays.fill(txBuffer, (byte) 0);
-                // Prepare main controller data
-                txBuffer[0] =  (byte) '$';
-                txBuffer[1] = (byte) 'B';
-                txBuffer[2] = (byte) 'T';
-                txBuffer[3] = (byte) '1';
-                txBuffer[4] = (byte) 'S';
-                txBuffer[5] = (byte) '-';
-                txBuffer[6] = (byte) '1';
-                txBuffer[7] = (byte) ';';
+
 
 
             }
         });
 
-        button2b.setOnClickListener(new View.OnClickListener() {
+        button5a.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
-
-                setMainTextViewData(txtDisplayTwoView, "-2");
-                byte[] txBuffer = new byte[8];
-                Arrays.fill(txBuffer, (byte) 0);
-                // Prepare main controller data
-                txBuffer[0] =  (byte) '$';
-                txBuffer[1] = (byte) 'B';
-                txBuffer[2] = (byte) 'T';
-                txBuffer[3] = (byte) '1';
-                txBuffer[4] = (byte) 'S';
-                txBuffer[5] = (byte) '-';
-                txBuffer[6] = (byte) '2';
-                txBuffer[7] = (byte) ';';
-
-
-            }
-        });
-
-        button3b.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-
-                setMainTextViewData(txtDisplayTwoView, "-3");
-                byte[] txBuffer = new byte[8];
-                Arrays.fill(txBuffer, (byte) 0);
-                // Prepare main controller data
-                txBuffer[0] =  (byte) '$';
-                txBuffer[1] = (byte) 'B';
-                txBuffer[2] = (byte) 'T';
-                txBuffer[3] = (byte) '1';
-                txBuffer[4] = (byte) 'S';
-                txBuffer[5] = (byte) '-';
-                txBuffer[6] = (byte) '3';
-                txBuffer[7] = (byte) ';';
-
-
-            }
-        });
-
-        button4b.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-
-                setMainTextViewData(txtDisplayTwoView, "-4");
-                byte[] txBuffer = new byte[8];
-                Arrays.fill(txBuffer, (byte) 0);
-                // Prepare main controller data
-                txBuffer[0] =  (byte) '$';
-                txBuffer[1] = (byte) 'B';
-                txBuffer[2] = (byte) 'T';
-                txBuffer[3] = (byte) '1';
-                txBuffer[4] = (byte) 'S';
-                txBuffer[5] = (byte) '-';
-                txBuffer[6] = (byte) '4';
-                txBuffer[7] = (byte) ';';
-
-
-            }
-        });
-
-        button5b.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-
-                setMainTextViewData(txtDisplayTwoView, "-5");
-                byte[] txBuffer = new byte[8];
-                Arrays.fill(txBuffer, (byte) 0);
-                // Prepare main controller data
-                txBuffer[0] =  (byte) '$';
-                txBuffer[1] = (byte) 'B';
-                txBuffer[2] = (byte) 'T';
-                txBuffer[3] = (byte) '1';
-                txBuffer[4] = (byte) 'S';
-                txBuffer[5] = (byte) '-';
-                txBuffer[6] = (byte) '5';
-                txBuffer[7] = (byte) ';';
 
 
             }
