@@ -242,6 +242,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         // Initial UI state
         updateUIBasedOnState();
+        setupButtonFocusListeners();
+        setupClock();
     }
 
     /**
@@ -562,6 +564,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
             // Handle ESCAPE key (acts as back button on keyboards)
             if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
+                aFragment.performGButtonActionClear();
                 // If drawer is open, close it
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
@@ -580,6 +583,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
             // Check if current focus is an EditText
             boolean isEditTextFocused = currentFocus instanceof EditText;
+            // Check if current focus is a Button (including AppCompatButton)
+            boolean isButtonFocused = currentFocus instanceof Button ||
+                    currentFocus instanceof androidx.appcompat.widget.AppCompatButton;
 
             // Handle TAB key - only for EditText navigation
             if (keyCode == KeyEvent.KEYCODE_TAB) {
@@ -599,9 +605,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 return false; // Let TAB perform its default behavior when no EditText is focused
             }
 
-            // Handle ENTER key - for EditText navigation
+            // Handle ENTER key - for EditText and Button navigation
             if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                // Only process ENTER if an EditText is focused
+                // If EditText is focused
                 if (isEditTextFocused) {
                     EditText currentEditText = (EditText) currentFocus;
 
@@ -611,49 +617,91 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
                     if (isNumberEditText) {
                         // For number EditTexts, we want to prevent cursor hiding
-                        // Try to find next EditText
-                        View nextView = findNextEditText(currentFocus, View.FOCUS_DOWN);
+                        // Try to find next focusable view
+                        View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
 
                         if (nextView != null) {
                             nextView.requestFocus();
                             return true;
                         } else {
                             // Try right
-                            nextView = findNextEditText(currentFocus, View.FOCUS_RIGHT);
+                            nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
                             if (nextView != null) {
                                 nextView.requestFocus();
                                 return true;
                             }
                         }
 
-                        // If no next EditText, consume the event to keep cursor
+                        // If no next view, consume the event to keep cursor
                         return true;
                     } else {
                         // For regular EditTexts, try to navigate
-                        View nextView = findNextEditText(currentFocus, View.FOCUS_DOWN);
+                        View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
 
                         if (nextView != null) {
                             nextView.requestFocus();
                             return true;
                         } else {
-                            nextView = findNextEditText(currentFocus, View.FOCUS_RIGHT);
+                            nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
                             if (nextView != null) {
                                 nextView.requestFocus();
                                 return true;
                             }
                         }
 
-                        // If no next EditText, let default behavior happen
+                        // If no next view, let default behavior happen
                         return false;
                     }
                 }
+                // If Button is focused
+                else if (isButtonFocused) {
+                    // Check which button is focused and call appropriate action
+                    if (currentFocus.getId() == R.id.button4a) {
+                        // Save button is focused
+                        if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
+                            ((AFragment) visibleFragment).performSaveAction();
+                            return true;
+                        }
+                    } else if (currentFocus.getId() == R.id.button5a) {
+                        // Print button is focused
+                        if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
+                            ((AFragment) visibleFragment).performPrintAction();
+                            return true;
+                        }
+                    } else {
+                        // For other buttons, try to find next focusable view
+                        View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
 
-                // Let ENTER perform its default action for non-EditText views
+                        if (nextView != null) {
+                            nextView.requestFocus();
+                            return true;
+                        } else {
+                            // Try right
+                            nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
+                            if (nextView != null) {
+                                nextView.requestFocus();
+                                return true;
+                            }
+                        }
+
+                        // If no next view, perform button click
+                        if (currentFocus instanceof Button) {
+                            ((Button) currentFocus).performClick();
+                            return true;
+                        } else if (currentFocus instanceof androidx.appcompat.widget.AppCompatButton) {
+                            ((androidx.appcompat.widget.AppCompatButton) currentFocus).performClick();
+                            return true;
+                        }
+                    }
+                    return true;
+                }
+
+                // Let ENTER perform its default action for other views
                 return false;
             }
 
             // Handle T key for tare button (only if no EditText is focused)
-            if ((keyCode == KeyEvent.KEYCODE_T || keyCode == KeyEvent.KEYCODE_T) && !isEditTextFocused) {
+            if ((keyCode == KeyEvent.KEYCODE_T) && !isEditTextFocused) {
                 // Check if Fragment A is visible
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
@@ -670,7 +718,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
 
             // Handle G key for gross button (only if no EditText is focused)
-            if ((keyCode == KeyEvent.KEYCODE_G || keyCode == KeyEvent.KEYCODE_G) && !isEditTextFocused) {
+            if ((keyCode == KeyEvent.KEYCODE_G) && !isEditTextFocused) {
                 // Check if Fragment A is visible
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
@@ -682,6 +730,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                         buttonG.performClick();
                         return true;
                     }
+                }
+                return true;
+            }
+
+            // Handle M key for manual tare button (only if no EditText is focused)
+            if ((keyCode == KeyEvent.KEYCODE_M) && !isEditTextFocused) {
+                // Check if Fragment A is visible
+                if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
+                    AFragment aFragment = (AFragment) visibleFragment;
+                    aFragment.performMButtonAction();
+                    return true;
                 }
                 return true;
             }
@@ -700,7 +759,94 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         return super.dispatchKeyEvent(event);
     }
+    // Add this method to setup focus change listeners for buttons
+        private void setupButtonFocusListeners() {
+        // Setup focus change listener for button T
+        if (buttonT != null) {
+            buttonT.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        // Button gained focus
+                        buttonT.setBackgroundColor(Color.parseColor("#FFA500")); // Orange color
+                        buttonT.setTextColor(Color.WHITE);
+                    } else {
+                        // Button lost focus
+                        buttonT.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonT.setTextColor(Color.BLACK);
+                    }
+                }
+            });
+        }
 
+        // Setup focus change listener for button G
+        if (buttonG != null) {
+            buttonG.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        // Button gained focus
+                        buttonG.setBackgroundColor(Color.parseColor("#00FF00")); // Green color
+                        buttonG.setTextColor(Color.WHITE);
+                    } else {
+                        // Button lost focus
+                        buttonG.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonG.setTextColor(Color.BLACK);
+                    }
+                }
+            });
+        }
+
+        // Setup focus change listener for button A (if exists)
+        if (buttonA != null) {
+            buttonA.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        buttonA.setBackgroundColor(Color.parseColor("#FFA500")); // Orange color
+                        buttonA.setTextColor(Color.WHITE);
+                    } else {
+                        buttonA.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonA.setTextColor(Color.BLACK);
+                    }
+                }
+            });
+        }
+
+        // Setup focus change listener for button B (if exists)
+        if (buttonB != null) {
+            buttonB.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                @Override
+                public void onFocusChange(View v, boolean hasFocus) {
+                    if (hasFocus) {
+                        buttonB.setBackgroundColor(Color.parseColor("#00FF00")); // Green color
+                        buttonB.setTextColor(Color.WHITE);
+                    } else {
+                        buttonB.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonB.setTextColor(Color.BLACK);
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * Helper method to find the next focusable view in a specific direction
+     */
+    private View findNextFocusableView(View currentView, int direction) {
+        if (currentView == null) return null;
+
+        @SuppressLint("WrongConstant") View nextView = currentView.focusSearch(direction);
+
+        // Keep searching until we find a focusable view or run out of candidates
+        while (nextView != null && !nextView.isFocusable()) {
+            @SuppressLint("WrongConstant") View tempView = nextView.focusSearch(direction);
+            if (tempView == null || tempView == nextView) break; // Prevent infinite loop
+            nextView = tempView;
+        }
+
+        return nextView;
+    }
     /**
      * Helper method to find the next EditText in a specific direction
      */
@@ -990,12 +1136,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 case BluetoothConnectionManager.CONNECTION_SUCCESS:
                     updateConnectionUI(true);
                     saveDeviceForAutoConnect();
-                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                  //  Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                     break;
 
                 case BluetoothConnectionManager.CONNECTION_FAILED:
                     updateConnectionUI(false);
-                    Toast.makeText(this, "Bluetooth connection failed: " + message, Toast.LENGTH_LONG).show();
+                   // Toast.makeText(this, "Bluetooth connection failed: " + message, Toast.LENGTH_LONG).show();
                     break;
             }
         });
@@ -1011,7 +1157,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         runOnUiThread(() -> {
             Log.d("Connection", "Connection lost");
             updateConnectionUI(false);
-            Toast.makeText(this, "Bluetooth connection lost", Toast.LENGTH_SHORT).show();
+           // Toast.makeText(this, "Bluetooth connection lost", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -1098,7 +1244,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         invalidateOptionsMenu();
 
         String message = newState ? "Auto-connect enabled" : "Auto-connect disabled";
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+       // Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
         // If enabling and not connected, try to auto-connect
         if (newState && !isConnected.get()) {
@@ -1134,7 +1280,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
         adb.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
-                Toast.makeText(MainActivity.this, "Cancel", Toast.LENGTH_SHORT).show();
+               // Toast.makeText(MainActivity.this, "Cancel", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             }
         });
@@ -1421,12 +1567,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         switch (status) {
             case BluetoothConnectionManager.CONNECTION_SUCCESS:
                 updateConnectionUI(true);
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+              //  Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                 break;
 
             case BluetoothConnectionManager.CONNECTION_FAILED:
                 updateConnectionUI(false);
-                Toast.makeText(this, "Disconnected: " + message, Toast.LENGTH_LONG).show();
+               // Toast.makeText(this, "Disconnected: " + message, Toast.LENGTH_LONG).show();
                 break;
         }
     }
