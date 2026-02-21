@@ -407,7 +407,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         abcLayout.setVisibility(View.VISIBLE);
         uNit.setVisibility(View.VISIBLE);
         fragmentContainer.setVisibility(View.GONE);
-        txtCounter.setTextColor(Color.parseColor("#FF0000"));
+        txtCounter.setTextColor(Color.parseColor("#FFFFFF"));
     }
 
     /**

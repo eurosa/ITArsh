@@ -13,24 +13,11 @@ public class WeighmentEntry {
     private String manualTare;
     private String net;
     private String timestamp;
+    private boolean finalized; // New field to track if entry is finalized
 
-    // Constructors
+    // Default constructor
     public WeighmentEntry() {
-    }
-
-    public WeighmentEntry(String serialNo, String vehicleNo, String vehicleType,
-                          String material, String party, String charge,
-                          String gross, String tare, String net, String manualTare) {
-        this.serialNo = serialNo;
-        this.vehicleNo = vehicleNo;
-        this.vehicleType = vehicleType;
-        this.material = material;
-        this.party = party;
-        this.charge = charge;
-        this.gross = gross;
-        this.tare = tare;
-        this.net = net;
-        this.manualTare = manualTare;
+        this.finalized = false; // Default to not finalized
     }
 
     // Getters and Setters
@@ -101,15 +88,17 @@ public class WeighmentEntry {
     public String getTare() {
         return tare;
     }
+
+    public void setTare(String tare) {
+        this.tare = tare;
+    }
+
     public String getManualTare() {
         return manualTare;
     }
 
     public void setManualTare(String manualTare) {
         this.manualTare = manualTare;
-    }
-    public void setTare(String tare) {
-        this.tare = tare;
     }
 
     public String getNet() {
@@ -128,12 +117,27 @@ public class WeighmentEntry {
         this.timestamp = timestamp;
     }
 
-    // Calculate net weight
+    public boolean isFinalized() {
+        return finalized;
+    }
+
+    public void setFinalized(boolean finalized) {
+        this.finalized = finalized;
+    }
+
+    // Calculate net weight from gross and tare
     public void calculateNet() {
         try {
-            double grossValue = Double.parseDouble(gross);
-            double tareValue = Double.parseDouble(tare);
-            double netValue = grossValue - tareValue;
+            long grossValue = gross != null && !gross.isEmpty() ? Long.parseLong(gross) : 0;
+            long tareValue = tare != null && !tare.isEmpty() ? Long.parseLong(tare) : 0;
+            long manualTareValue = manualTare != null && !manualTare.isEmpty() ? Long.parseLong(manualTare) : 0;
+
+            // Use the greater of tare and manualTare
+            long effectiveTare = Math.max(tareValue, manualTareValue);
+
+            long netValue = grossValue - effectiveTare;
+            if (netValue < 0) netValue = 0;
+
             this.net = String.valueOf(netValue);
         } catch (NumberFormatException e) {
             this.net = "0";

@@ -13,10 +13,7 @@
 
 
         <!-- Base dimensions -->
-        <dimen name="tiny_padding">1dp</dimen>
-        <dimen name="small_padding">1dp</dimen>
-        <dimen name="medium_padding">8dp</dimen>
-        <dimen name="large_padding">16dp</dimen>
+
         <dimen name="extra_large_padding">24dp</dimen>
 
         <!-- Divider -->
@@ -25,7 +22,7 @@
         <!-- Toolbar -->
         <dimen name="toolbar_padding">8dp</dimen>
         <dimen name="toolbar_logo_size">48dp</dimen>
-        <dimen name="toolbar_icon_size">24dp</dimen>
+
 
         <!-- Controls -->
         <dimen name="control_button_size">36dp</dimen>
@@ -86,7 +83,35 @@
     <dimen name="_600dp">300dp</dimen>
 
     <!-- Integer for responsive grid -->
-        <integer name="gas_alarm_columns">3</integer>
+    <integer name="gas_alarm_columns">3</integer>
+
+    <!-- Base dimensions -->
+    <dimen name="tiny_padding">2dp</dimen>
+    <dimen name="small_padding">4dp</dimen>
+    <dimen name="medium_padding">8dp</dimen>
+    <dimen name="large_padding">16dp</dimen>
+    <dimen name="xlarge_padding">24dp</dimen>
+
+    <!-- Text sizes -->
+    <dimen name="small_text_size">12sp</dimen>
+    <dimen name="medium_text_size">14sp</dimen>
+    <dimen name="large_text_size">16sp</dimen>
+    <dimen name="xlarge_text_size">18sp</dimen>
+
+    <!-- Counter text size - responsive -->
+    <dimen name="counter_text_size">100sp</dimen>
+    <dimen name="unit_text_size">40sp</dimen>
+
+    <!-- Button text size -->
+    <dimen name="button_text_size">24sp</dimen>
+    <dimen name="button_padding">12dp</dimen>
+
+    <!-- Toolbar -->
+    <dimen name="toolbar_icon_size">24dp</dimen>
+
+    <!-- Drawer width -->
+    <dimen name="drawer_width">280dp</dimen>
+
 
 
 </resources>

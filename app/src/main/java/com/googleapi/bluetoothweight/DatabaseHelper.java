@@ -13,7 +13,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "WeighmentDB";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2; // Increment version for new column
 
     // Table name
     private static final String TABLE_WEIGHMENT = "weighment_entries";
@@ -31,6 +31,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_MANUAL_TARE = "manual_tare";
     private static final String COLUMN_NET = "net";
     private static final String COLUMN_TIMESTAMP = "timestamp";
+    private static final String COLUMN_FINALIZED = "finalized"; // New column to track finalized status
 
     // Create table query
     private static final String CREATE_TABLE = "CREATE TABLE " + TABLE_WEIGHMENT + "("
@@ -45,6 +46,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_TARE + " TEXT,"
             + COLUMN_MANUAL_TARE + " TEXT,"
             + COLUMN_NET + " TEXT,"
+            + COLUMN_FINALIZED + " INTEGER DEFAULT 0," // 0 = not finalized, 1 = finalized
             + COLUMN_TIMESTAMP + " DATETIME DEFAULT CURRENT_TIMESTAMP"
             + ")";
 
@@ -60,8 +62,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_WEIGHMENT);
-        onCreate(db);
+        // For version upgrade, add the new column if it doesn't exist
+        if (oldVersion < 2) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_WEIGHMENT + " ADD COLUMN " + COLUMN_FINALIZED + " INTEGER DEFAULT 0");
+                Log.d("DatabaseHelper", "Added finalized column to existing table");
+            } catch (Exception e) {
+                Log.e("DatabaseHelper", "Error adding finalized column: " + e.getMessage());
+            }
+        } else {
+            // If upgrading from very old version, drop and recreate
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_WEIGHMENT);
+            onCreate(db);
+        }
     }
 
     // Insert weighment entry
@@ -79,6 +92,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_TARE, entry.getTare());
         values.put(COLUMN_MANUAL_TARE, entry.getManualTare());
         values.put(COLUMN_NET, entry.getNet());
+        values.put(COLUMN_FINALIZED, entry.isFinalized() ? 1 : 0); // Save finalized status
 
         long id = db.insert(TABLE_WEIGHMENT, null, values);
         db.close();
@@ -127,6 +141,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             entry.setTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TARE)));
             entry.setManualTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MANUAL_TARE)));
             entry.setNet(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NET)));
+
+            // Get finalized status (handle if column doesn't exist in older versions)
+            int finalizedIndex = cursor.getColumnIndex(COLUMN_FINALIZED);
+            if (finalizedIndex >= 0) {
+                entry.setFinalized(cursor.getInt(finalizedIndex) == 1);
+            } else {
+                entry.setFinalized(false); // Default for old entries
+            }
+
             entry.setTimestamp(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)));
             cursor.close();
         }
@@ -134,7 +157,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
         return entry;
     }
-    // Add this method to DatabaseHelper class
+
+    // Get next serial number
     public int getNextSerialNumber() {
         SQLiteDatabase db = this.getReadableDatabase();
         String query = "SELECT MAX(CAST(" + COLUMN_SERIAL_NO + " AS INTEGER)) FROM " + TABLE_WEIGHMENT;
@@ -152,6 +176,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         return nextSerial;
     }
+
     // Update weighment entry
     public int updateWeighment(WeighmentEntry entry) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -166,6 +191,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_TARE, entry.getTare());
         values.put(COLUMN_MANUAL_TARE, entry.getManualTare());
         values.put(COLUMN_NET, entry.getNet());
+        values.put(COLUMN_FINALIZED, entry.isFinalized() ? 1 : 0); // Update finalized status
 
         return db.update(TABLE_WEIGHMENT, values, COLUMN_SERIAL_NO + "=?",
                 new String[]{entry.getSerialNo()});

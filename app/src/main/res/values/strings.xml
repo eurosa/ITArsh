@@ -15,4 +15,5 @@
     <string name="empty_list_message">No nearby devices found. Tap on the bottom-right button to start a new device discovery.</string>
     <string name="save_print"><![CDATA[Save&Print]]></string>
     <string name="update_print"><![CDATA[Update&Print]]></string>
+    <string name="search_update_entry">2nd Weighment</string>
 </resources>
