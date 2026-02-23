@@ -28,7 +28,7 @@ public class AFragment extends Fragment {
     private EditText serialEditText, vehicleNoEditText, vehicleEditText, materialEditText,
             partyEditText, chargeEditText, grossEditText, tareEditText, manualEditText, netWeightEditText;
     private TextView txtNetWeight;
-
+    private View[] focusOrder;
     private DatabaseHelper databaseHelper;
 
     // Button references for T, G, M
@@ -57,7 +57,20 @@ public class AFragment extends Fragment {
 
         // Setup T, G, M buttons
         setupTGMButtons();
-
+        focusOrder = new View[]{
+                vehicleNoEditText,
+                vehicleEditText,
+                materialEditText,
+                partyEditText,
+                chargeEditText,
+                grossEditText,
+                tareEditText,
+                manualEditText,
+                buttonT,
+                buttonG,
+                button4a,
+                button5a
+        };
         // Setup Save and Print buttons
         setupActionButtons();
         setupButtonFocusListeners();
@@ -313,17 +326,34 @@ public class AFragment extends Fragment {
      */
     public void performTButtonAction() {
         // Same logic as button T click
+        buttonT.requestFocus();
        // Toast.makeText(getActivity(), "T button pressed via keyboard", Toast.LENGTH_SHORT).show();
         if (mainActivity != null && mainActivity.txtCounter != null) {
             tareEditText.setText(mainActivity.txtCounter.getText().toString().trim());
         }
     }
+    // Add these methods to your AFragment class
+    public AppCompatButton getButtonT() {
+        return buttonT;
+    }
 
+    public AppCompatButton getButtonG() {
+        return buttonG;
+    }
+
+    public AppCompatButton getButton4a() {
+        return button4a;
+    }
+
+    public AppCompatButton getButton5a() {
+        return button5a;
+    }
     /**
      * Method to perform G button action (called from MainActivity)
      */
     public void performGButtonAction() {
         // Same logic as button G click
+        buttonG.requestFocus();
       //  Toast.makeText(getActivity(), "G button pressed via keyboard", Toast.LENGTH_SHORT).show();
         if (mainActivity != null && mainActivity.txtCounter != null) {
             grossEditText.setText(mainActivity.txtCounter.getText().toString().trim());
@@ -359,6 +389,9 @@ public class AFragment extends Fragment {
                     }
                 }
             });
+
+            // Set key listener for Enter key on button T
+
         }
 
         // Setup focus change listener for button G
@@ -377,7 +410,27 @@ public class AFragment extends Fragment {
                     }
                 }
             });
+
+            // Set key listener for Enter key on button G
+            buttonG.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                            // Call performGButtonAction when Enter is pressed
+                            performGButtonAction();
+
+                            // Optional: Move focus to next view after action
+                            moveToNextFocus(v);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
         }
+
+        // Setup for button4a (Save button)
         if (button4a != null) {
             button4a.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
@@ -393,7 +446,28 @@ public class AFragment extends Fragment {
                     }
                 }
             });
-        } if (button5a != null) {
+
+            // Set key listener for Enter key on Save button
+            button4a.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                            // Call save action when Enter is pressed
+                            printWeighmentEntry();
+
+                            // Optional: Move focus to next view after action
+                            moveToNextFocus(v);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
+        }
+
+        // Setup for button5a (Print button)
+        if (button5a != null) {
             button5a.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
@@ -408,19 +482,97 @@ public class AFragment extends Fragment {
                     }
                 }
             });
+
+            // Set key listener for Enter key on Print button
+            button5a.setOnKeyListener(new View.OnKeyListener() {
+                @Override
+                public boolean onKey(View v, int keyCode, KeyEvent event) {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                            // Call print action when Enter is pressed
+                            printWeighmentEntry();
+
+                            // Optional: Move focus to next view after action
+                            moveToNextFocus(v);
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            });
+        }
+    }
+
+    /**
+     * Helper method to move focus to next view after button action
+     */
+    private void moveToNextFocus(View currentView) {
+        // Find current index in focus order
+        int currentIndex = -1;
+        for (int i = 0; i < focusOrder.length; i++) {
+            if (focusOrder[i] == currentView) {
+                currentIndex = i;
+                break;
+            }
         }
 
-        // Setup focus change listener for button A (if exists)
+        if (currentIndex != -1) {
+            // Calculate next index with wrap-around
+            int nextIndex = (currentIndex + 1) % focusOrder.length;
+            int attempts = 0;
 
+            // Find next focusable view, skipping disabled views
+            while (attempts < focusOrder.length) {
+                View nextView = focusOrder[nextIndex];
 
-        // Setup focus change listener for button B (if exists)
+                // Check if view is focusable and enabled
+                if (nextView != null && nextView.isFocusable() &&
+                        (!(nextView instanceof EditText) || ((EditText) nextView).isEnabled())) {
 
+                    nextView.requestFocus();
+
+                    // Update keyboard for the next view
+                    if (nextView instanceof EditText) {
+                        showKeyboard((EditText) nextView);
+                    } else {
+                        hideKeyboard();
+                    }
+                    return;
+                }
+
+                // Try next view
+                nextIndex = (nextIndex + 1) % focusOrder.length;
+                attempts++;
+            }
+        }
+    }
+
+// Make sure you have these helper methods in your class:
+    /**
+     * Show keyboard for EditText
+     */
+    private void showKeyboard(EditText editText) {
+        if (getActivity() != null) {
+            editText.requestFocus();
+            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
+    /**
+     * Hide keyboard
+     */
+    private void hideKeyboard() {
+        if (getActivity() != null && getActivity().getCurrentFocus() != null) {
+            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(getActivity().getCurrentFocus().getWindowToken(), 0);
+        }
     }
     private void setupActionButtons() {
         button4a.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                saveWeighmentEntry();
+                printWeighmentEntry();
             }
         });
 
@@ -481,48 +633,7 @@ public class AFragment extends Fragment {
 
             // clearAllFields();
         }
-       /* AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
 
-        if (exists) {
-            builder.setTitle("Update Entry");
-            builder.setMessage("Serial number " + serialNo + " already exists. Do you want to update it?");
-        } else {
-            builder.setTitle("Save Entry");
-            builder.setMessage("Do you want to save this entry?");
-        }
-
-        builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                long result;
-                if (exists) {
-                    result = databaseHelper.updateWeighment(entry);
-                    if (result > 0) {
-                        Toast.makeText(getActivity(), "Entry #" + serialNo + " updated successfully", Toast.LENGTH_SHORT).show();
-                      //  clearAllFields();
-                    }
-                } else {
-                    result = databaseHelper.insertWeighment(entry);
-                    if (result > 0) {
-                        Toast.makeText(getActivity(), "Entry #" + serialNo + " saved successfully", Toast.LENGTH_SHORT).show();
-                       // clearAllFields();
-                    }
-                }
-
-                if (result <= 0) {
-                    Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
-        builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-
-        builder.show();*/
     }
     /**
      * Public method to trigger save action from MainActivity
@@ -593,16 +704,71 @@ public class AFragment extends Fragment {
         String tare = tareEditText.getText().toString().trim();
         String manualTare = manualEditText.getText().toString().trim();
 
+        // Validate serial number
         if (serialNo.isEmpty()) {
             Toast.makeText(getActivity(), "Serial number is required", Toast.LENGTH_SHORT).show();
+            serialEditText.requestFocus();
             return;
         }
 
+        // Validate vehicle number
         if (vehicleNo.isEmpty()) {
             vehicleNoEditText.setError("Vehicle number is required");
             vehicleNoEditText.requestFocus();
             return;
         }
+
+        // Track if we have valid weight entries
+        boolean hasValidGross = false;
+        boolean hasValidTare = false;
+
+        // Check Gross Weight - can be empty or any valid number (including zero)
+        if (!gross.isEmpty()) {
+            try {
+                double grossValue = Double.parseDouble(gross);
+                if (grossValue >= 0) {
+                    hasValidGross = true;
+                } else {
+                    grossEditText.setError("Gross weight cannot be negative");
+                    grossEditText.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                grossEditText.setError("Please enter a valid number for Gross weight");
+                grossEditText.requestFocus();
+                return;
+            }
+        }
+
+        // Check Tare Weight - can be empty or any valid number (including zero)
+        if (!tare.isEmpty()) {
+            try {
+                double tareValue = Double.parseDouble(tare);
+                if (tareValue >= 0) {
+                    hasValidTare = true;
+                } else {
+                    tareEditText.setError("Tare weight cannot be negative");
+                    tareEditText.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                tareEditText.setError("Please enter a valid number for Tare weight");
+                tareEditText.requestFocus();
+                return;
+            }
+        }
+
+        // Check if at least one weight field has a value - SIMPLIFIED: just toast, no dialog
+        if (!hasValidGross && !hasValidTare) {
+            Toast.makeText(getActivity(), "Please enter at least Gross weight or Tare weight",
+                    Toast.LENGTH_LONG).show();
+            grossEditText.requestFocus(); // Focus on gross field by default
+            return;
+        }
+
+        // Set default values for empty fields (treat as 0)
+        String finalGross = gross.isEmpty() ? "0" : gross;
+        String finalTare = tare.isEmpty() ? "0" : tare;
 
         // Create entry object
         WeighmentEntry entry = new WeighmentEntry();
@@ -612,8 +778,8 @@ public class AFragment extends Fragment {
         entry.setMaterial(material);
         entry.setParty(party);
         entry.setCharge(charge);
-        entry.setGross(gross);
-        entry.setTare(tare);
+        entry.setGross(finalGross);
+        entry.setTare(finalTare);
         entry.setManualTare(manualTare);
         entry.calculateNet();
 
@@ -625,84 +791,101 @@ public class AFragment extends Fragment {
         printContent.append("Material: ").append(material).append("\n");
         printContent.append("Party: ").append(party).append("\n");
         printContent.append("Charge: ").append(charge).append("\n");
-        printContent.append("Gross Weight: ").append(gross).append(" kg\n");
+        printContent.append("Gross Weight: ").append(finalGross).append(" kg\n");
         printContent.append("Manual Tare Weight: ").append(manualTare).append(" kg\n");
-        printContent.append("Tare Weight: ").append(tare).append(" kg\n");
+        printContent.append("Tare Weight: ").append(finalTare).append(" kg\n");
         printContent.append("Net Weight: ").append(entry.getNet()).append(" kg\n");
         printContent.append("==========================");
 
         boolean exists = databaseHelper.isSerialNoExists(serialNo);
-        long result;
+
         if (exists) {
-          //  result = databaseHelper.updateWeighment(entry);
+           // showPrintUpdateConfirmationDialog(entry, serialNo);
         } else {
-            result = databaseHelper.insertWeighment(entry);
+            long result = databaseHelper.insertWeighment(entry);
             if (result > 0) {
                 Toast.makeText(getActivity(), "Entry #" + serialNo + " saved and printing", Toast.LENGTH_SHORT).show();
                 Toast.makeText(getActivity(), "Printing...", Toast.LENGTH_SHORT).show();
-                // clearAllFields();
+              //  showPrintPreviewDialog(printContent.toString(), entry, serialNo, false);
                 moveFocusToSaveButton();
             } else {
                 Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();
             }
         }
-        // Show print dialog
-       /*   AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("Print Preview");
-        builder.setMessage(printContent.toString());
-
-        builder.setPositiveButton("Print & Save", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                boolean exists = databaseHelper.isSerialNoExists(serialNo);
-                long result;
-
-              if (exists) {
-                   result = databaseHelper.updateWeighment(entry);
-                } else {
-                    result = databaseHelper.insertWeighment(entry);
-                }
-
-                if (result > 0) {
-                    Toast.makeText(getActivity(), "Entry #" + serialNo + " saved and printing", Toast.LENGTH_SHORT).show();
-                    Toast.makeText(getActivity(), "Printing...", Toast.LENGTH_SHORT).show();
-                   // clearAllFields();
-                } else {
-                    Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });*/
-
-       /* builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });*/
-
-       /* builder.setNeutralButton("Save Only", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                boolean exists = databaseHelper.isSerialNoExists(serialNo);
-                long result;
-
-                if (exists) {
-                    result = databaseHelper.updateWeighment(entry);
-                } else {
-                    result = databaseHelper.insertWeighment(entry);
-                }
-
-                if (result > 0) {
-                    Toast.makeText(getActivity(), "Entry #" + serialNo + " saved successfully", Toast.LENGTH_SHORT).show();
-                   // clearAllFields();
-                } else {
-                    Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
-        builder.show();*/
     }
+    /**
+     * Alternative simplified version with just the validation logic
+     */
+/*
+private void printWeighmentEntry() {
+    // Get values
+    String serialNo = serialEditText.getText().toString().trim();
+    String vehicleNo = vehicleNoEditText.getText().toString().trim();
+    String gross = grossEditText.getText().toString().trim();
+    String tare = tareEditText.getText().toString().trim();
+
+    // Basic required fields
+    if (serialNo.isEmpty()) {
+        Toast.makeText(getActivity(), "Serial number is required", Toast.LENGTH_SHORT).show();
+        return;
+    }
+
+    if (vehicleNo.isEmpty()) {
+        vehicleNoEditText.setError("Vehicle number is required");
+        vehicleNoEditText.requestFocus();
+        return;
+    }
+
+    // Check if at least one of gross or tare has a value
+    if (gross.isEmpty() && tare.isEmpty()) {
+        Toast.makeText(getActivity(), "Please enter either Gross or Tare weight", Toast.LENGTH_SHORT).show();
+
+        // Ask user which field to fill
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setTitle("Weight Required");
+        builder.setMessage("Please enter at least Gross weight or Tare weight");
+        builder.setPositiveButton("Enter Gross", (d, w) -> grossEditText.requestFocus());
+        builder.setNegativeButton("Enter Tare", (d, w) -> tareEditText.requestFocus());
+        builder.setNeutralButton("Cancel", null);
+        builder.show();
+        return;
+    }
+
+    // Validate gross if provided
+    if (!gross.isEmpty()) {
+        try {
+            double g = Double.parseDouble(gross);
+            if (g < 0) {
+                grossEditText.setError("Gross cannot be negative");
+                grossEditText.requestFocus();
+                return;
+            }
+        } catch (NumberFormatException e) {
+            grossEditText.setError("Invalid number");
+            grossEditText.requestFocus();
+            return;
+        }
+    }
+
+    // Validate tare if provided
+    if (!tare.isEmpty()) {
+        try {
+            double t = Double.parseDouble(tare);
+            if (t < 0) {
+                tareEditText.setError("Tare cannot be negative");
+                tareEditText.requestFocus();
+                return;
+            }
+        } catch (NumberFormatException e) {
+            tareEditText.setError("Invalid number");
+            tareEditText.requestFocus();
+            return;
+        }
+    }
+
+    // Rest of your printing logic...
+}
+*/
 
     @Override
     public void onResume() {

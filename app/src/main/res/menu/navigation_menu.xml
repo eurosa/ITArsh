@@ -21,6 +21,10 @@
         android:id="@+id/action_pairedList"
         android:title="Connect to a Paired Device"
         android:icon="@drawable/ic_pair_bluetooth"/>
+    <item
+        android:id="@+id/action_report"
+        android:title="Report"
+        android:icon="@drawable/ic_pair_bluetooth"/>
 
     <item
         android:id="@+id/action_disconnect"

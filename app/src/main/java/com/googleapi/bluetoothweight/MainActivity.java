@@ -47,6 +47,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatButton;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -73,8 +74,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener, BluetoothConnectionManager.ConnectionCallback {
     private Button buttonT, buttonG;
-
-// In your onCreate method, after finding buttonA and buttonB
 
     private Fragment visibleFragment = null;
     private long lastClockUpdate = 0;
@@ -116,6 +115,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     // Fragment instances
     private AFragment aFragment;
     private BFragment bFragment;
+    private CFragment cFragment; // Add CFragment
 
     // Key event handling flags
     private AtomicBoolean isProcessingKeyEvent = new AtomicBoolean(false);
@@ -123,8 +123,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private static final long KEY_EVENT_DEBOUNCE_MS = 500;
 
     // Auto-reconnect variables
-    private static final int AUTO_RECONNECT_DELAY_MS = 8000; // Increased to 8 seconds
-    private static final int MAX_RECONNECT_ATTEMPTS = 5; // Increased attempts
+    private static final int AUTO_RECONNECT_DELAY_MS = 8000;
+    private static final int MAX_RECONNECT_ATTEMPTS = 5;
     private int reconnectAttempts = 0;
     private Handler reconnectHandler = new Handler(Looper.getMainLooper());
     private Runnable reconnectRunnable;
@@ -137,11 +137,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private AtomicBoolean isConnected = new AtomicBoolean(false);
     private AtomicBoolean isConnecting = new AtomicBoolean(false);
     private long lastConnectionAttemptTime = 0;
-    private static final long MIN_CONNECTION_INTERVAL_MS = 15000; // Increased to 15 seconds
+    private static final long MIN_CONNECTION_INTERVAL_MS = 15000;
 
     // Track current state
     private enum FragmentState {
-        NONE, FRAGMENT_A, FRAGMENT_B
+        NONE, FRAGMENT_A, FRAGMENT_B, FRAGMENT_C // Add FRAGMENT_C
     }
     private FragmentState currentFragmentState = FragmentState.NONE;
 
@@ -154,8 +154,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        buttonT = findViewById(R.id.buttonT); // Make sure this ID exists in your layout
-        buttonG = findViewById(R.id.buttonG); // Make sure this ID exists in your layout
+        buttonT = findViewById(R.id.buttonT);
+        buttonG = findViewById(R.id.buttonG);
         Drawable drawable = toolbar.getOverflowIcon();
         if (drawable != null) {
             drawable = DrawableCompat.wrap(drawable);
@@ -165,10 +165,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         connectionStatusIcon = findViewById(R.id.connectionStatus);
         connectionStatusTxt = findViewById(R.id.connectionStatusTxt);
 
-        /***************************************************************************************
-         * Navigation Drawer Layout
-         *
-         ***************************************************************************************/
         drawerLayout = findViewById(R.id.draw_layout);
         actionBarDrawerToggle = new ActionBarDrawerToggle(this, drawerLayout, R.string.nav_open, R.string.nav_close) {
             public void onDrawerClosed(View view) {
@@ -206,6 +202,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // Initialize fragments
         aFragment = new AFragment();
         bFragment = new BFragment();
+        cFragment = new CFragment(); // Initialize CFragment
 
         // Initialize reconnect runnable
         initializeReconnectRunnable();
@@ -229,7 +226,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // Create a container for counter views to manage visibility together
         counterContainer = findViewById(R.id.counter_container);
         if (counterContainer == null) {
-            // If no container exists, we'll manage individual views
             counterContainer = new View(this);
         }
 
@@ -257,12 +253,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         Log.d("Reconnect", "Attempting to reconnect... Attempt " + (reconnectAttempts + 1));
 
-                        // Get last connected device
                         String savedAddress = lastDevicePrefs.getString("address", "");
                         String savedInfo = lastDevicePrefs.getString("info", "");
 
                         if (!savedAddress.isEmpty()) {
-                            // First, ensure any existing connection is properly cleaned up
                             cleanupConnection();
 
                             runOnUiThread(() -> {
@@ -272,15 +266,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                                 updateConnectionStatus("Reconnecting...", R.drawable.ic_bluetooth_connecting);
                             });
 
-                            // Add a small delay before reconnecting to ensure cleanup
                             new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                                // Attempt to reconnect
                                 connectToDevice(savedAddress, savedInfo);
                             }, 1000);
 
                             reconnectAttempts++;
                         } else {
-                            // No saved device, stop reconnecting
                             stopReconnectionAttempts();
                             runOnUiThread(() -> {
                                 Toast.makeText(MainActivity.this,
@@ -290,7 +281,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             });
                         }
                     } else {
-                        // Max attempts reached
                         stopReconnectionAttempts();
                         runOnUiThread(() -> {
                             Toast.makeText(MainActivity.this,
@@ -313,17 +303,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         isCleaningUp.set(true);
         try {
             if (bluetoothManager != null) {
-                // First disconnect
                 bluetoothManager.disconnect();
 
-                // Small delay to ensure disconnect completes
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
 
-                // Force close any remaining connections
                 bluetoothManager.forceCloseConnection();
             }
         } catch (Exception e) {
@@ -386,12 +373,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         } else {
             updateConnectionStatus("Disconnected", R.drawable.ic_bluetooth_disconnected);
 
-            // Clean up resources before attempting reconnection
             cleanupConnection();
 
-            // Start reconnection attempts if auto-connect is enabled
             if (isAutoConnectEnabled.get()) {
-                // Add a delay before starting reconnection attempts
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     startReconnectionAttempts();
                 }, 2000);
@@ -432,7 +416,20 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         } else {
             hideCounterViews();
-            String colorHex = (currentFragmentState == FragmentState.FRAGMENT_A) ? "#FFA500" : "#00FF00";
+            String colorHex;
+            switch (currentFragmentState) {
+                case FRAGMENT_A:
+                    colorHex = "#FFA500";
+                    break;
+                case FRAGMENT_B:
+                    colorHex = "#00FF00";
+                    break;
+                case FRAGMENT_C:
+                    colorHex = "#2196F3";
+                    break;
+                default:
+                    colorHex = "#FFFFFF";
+            }
             txtCounter.setTextColor(Color.parseColor(colorHex));
         }
     }
@@ -442,7 +439,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
      */
     private void hideFragmentAndShowCounter() {
         if (visibleFragment != null) {
-            // Hide the current fragment
             getSupportFragmentManager().beginTransaction()
                     .hide(visibleFragment)
                     .commitAllowingStateLoss();
@@ -450,13 +446,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             visibleFragment = null;
             currentFragmentState = FragmentState.NONE;
 
-            // Deselect the button
             if (selectedButton != null) {
                 selectedButton.setSelected(false);
                 selectedButton = null;
             }
 
-            // Update UI
             updateUIBasedOnState();
         }
     }
@@ -465,19 +459,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
      * Show fragment and hide counter
      */
     private void showFragmentAndHideCounter(Button button, Fragment fragment, FragmentState state, String colorHex) {
-        // Hide current visible fragment if any
         if (visibleFragment != null && visibleFragment != fragment) {
             getSupportFragmentManager().beginTransaction()
                     .hide(visibleFragment)
                     .commitAllowingStateLoss();
 
-            // Deselect previous button
             if (selectedButton != null) {
                 selectedButton.setSelected(false);
             }
         }
 
-        // Show new fragment
         if (!fragment.isAdded()) {
             getSupportFragmentManager().beginTransaction()
                     .add(R.id.fragment_container, fragment, state.name())
@@ -491,46 +482,80 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         visibleFragment = fragment;
         currentFragmentState = state;
 
-        // Update UI
         updateUIBasedOnState();
 
-        button.setSelected(true);
-        selectedButton = button;
+        if (button != null) {
+            button.setSelected(true);
+            selectedButton = button;
+        }
     }
 
     /**
      * Toggle fragment visibility - for both button click and keyboard press
      */
     private void toggleFragment(Button button, Fragment fragment, FragmentState state, String colorHex) {
-        // Debounce rapid key presses
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastKeyEventTime < KEY_EVENT_DEBOUNCE_MS) {
             return;
         }
         lastKeyEventTime = currentTime;
 
-        // If clicking the same fragment that's visible, hide it
         if (currentFragmentState == state) {
             hideFragmentAndShowCounter();
-        }
-        // If clicking a different fragment or no fragment is visible, show it
-        else {
+        } else {
             showFragmentAndHideCounter(button, fragment, state, colorHex);
+        }
+    }
+
+    /**
+     * Toggle report fragment (for F5 key)
+     */
+    private void toggleReportFragment() {
+        if (currentFragmentState == FragmentState.FRAGMENT_C) {
+            hideFragmentAndShowCounter();
+            Toast.makeText(this, "Report View Closed", Toast.LENGTH_SHORT).show();
+        } else {
+            if (visibleFragment != null && visibleFragment != cFragment) {
+                getSupportFragmentManager().beginTransaction()
+                        .hide(visibleFragment)
+                        .commitAllowingStateLoss();
+
+                if (selectedButton != null) {
+                    selectedButton.setSelected(false);
+                    selectedButton = null;
+                }
+            }
+
+            if (!cFragment.isAdded()) {
+                getSupportFragmentManager().beginTransaction()
+                        .add(R.id.fragment_container, cFragment, "FRAGMENT_C")
+                        .commitAllowingStateLoss();
+            } else {
+                getSupportFragmentManager().beginTransaction()
+                        .show(cFragment)
+                        .commitAllowingStateLoss();
+
+                if (cFragment.isAdded()) {
+                    cFragment.refreshReport();
+                }
+            }
+
+            visibleFragment = cFragment;
+            currentFragmentState = FragmentState.FRAGMENT_C;
+
+            updateUIBasedOnState();
+            txtCounter.setTextColor(Color.parseColor("#2196F3"));
+            Toast.makeText(this, "Report View Opened (F5)", Toast.LENGTH_SHORT).show();
         }
     }
 
     @Override
     public void onBackPressed() {
-        // If drawer is open, close it first
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
             drawerLayout.closeDrawer(GravityCompat.START);
-        }
-        // If a fragment is visible, hide it and show the counter
-        else if (currentFragmentState != FragmentState.NONE) {
+        } else if (currentFragmentState != FragmentState.NONE) {
             hideFragmentAndShowCounter();
-        }
-        // If no fragment is visible and drawer is closed, exit normally
-        else {
+        } else {
             super.onBackPressed();
         }
     }
@@ -547,97 +572,78 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
             int keyCode = event.getKeyCode();
 
-            // Handle BACK button
             if (keyCode == KeyEvent.KEYCODE_BACK) {
-                // If drawer is open, close it
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                     return true;
-                }
-                // If fragment is visible, hide it
-                else if (currentFragmentState != FragmentState.NONE) {
+                } else if (currentFragmentState != FragmentState.NONE) {
                     hideFragmentAndShowCounter();
                     return true;
                 }
-                return false; // Let system handle if nothing else
+                return false;
             }
 
-            // Handle ESCAPE key (acts as back button on keyboards)
             if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
-                aFragment.performGButtonActionClear();
-                // If drawer is open, close it
+                if (aFragment != null) {
+                    aFragment.performGButtonActionClear();
+                }
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                     return true;
-                }
-                // If fragment is visible, hide it
-                else if (currentFragmentState != FragmentState.NONE) {
+                } else if (currentFragmentState != FragmentState.NONE) {
                     hideFragmentAndShowCounter();
                     return true;
                 }
                 return true;
             }
 
-            // Get current focused view
-            View currentFocus = getCurrentFocus();
+            // Handle F5 key for Report Fragment
+            if (keyCode == KeyEvent.KEYCODE_F5) {
+                toggleReportFragment();
+                return true;
+            }
 
-            // Check if current focus is an EditText
+            View currentFocus = getCurrentFocus();
             boolean isEditTextFocused = currentFocus instanceof EditText;
-            // Check if current focus is a Button (including AppCompatButton)
             boolean isButtonFocused = currentFocus instanceof Button ||
                     currentFocus instanceof androidx.appcompat.widget.AppCompatButton;
 
-            // Handle TAB key - only for EditText navigation
             if (keyCode == KeyEvent.KEYCODE_TAB) {
-                // Only process TAB if an EditText is focused
                 if (isEditTextFocused) {
-                    // Determine direction based on Shift key
                     int direction = event.isShiftPressed() ? View.FOCUS_BACKWARD : View.FOCUS_FORWARD;
-
-                    // Try to find next EditText
                     View nextView = findNextEditText(currentFocus, direction);
-
                     if (nextView != null) {
                         nextView.requestFocus();
                         return true;
                     }
                 }
-                return false; // Let TAB perform its default behavior when no EditText is focused
+                return false;
             }
 
-            // Handle ENTER key - for EditText and Button navigation
+            // Handle ENTER key for all focused views
             if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                // If EditText is focused
+
+                // Case 1: EditText has focus
                 if (isEditTextFocused) {
                     EditText currentEditText = (EditText) currentFocus;
-
-                    // Check if this is a number-only EditText
                     int inputType = currentEditText.getInputType();
                     boolean isNumberEditText = (inputType & InputType.TYPE_CLASS_NUMBER) != 0;
 
                     if (isNumberEditText) {
-                        // For number EditTexts, we want to prevent cursor hiding
-                        // Try to find next focusable view
                         View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
-
                         if (nextView != null) {
                             nextView.requestFocus();
                             return true;
                         } else {
-                            // Try right
                             nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
                             if (nextView != null) {
                                 nextView.requestFocus();
                                 return true;
                             }
                         }
-
-                        // If no next view, consume the event to keep cursor
                         return true;
                     } else {
-                        // For regular EditTexts, try to navigate
                         View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
-
                         if (nextView != null) {
                             nextView.requestFocus();
                             return true;
@@ -648,35 +654,47 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                                 return true;
                             }
                         }
-
-                        // If no next view, let default behavior happen
                         return false;
                     }
                 }
-                // If Button is focused
+
+                // Case 2: Button has focus
                 else if (isButtonFocused) {
-                    // Check which button is focused and call appropriate action
-                    if (currentFocus.getId() == R.id.button4a) {
-                        // Save button is focused
+                    // Check if it's buttonT
+                    if (currentFocus.getId() == R.id.buttonT) {
                         if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
-                            ((AFragment) visibleFragment).performSaveAction();
+                            ((AFragment) visibleFragment).performTButtonAction();
                             return true;
                         }
-                    } else if (currentFocus.getId() == R.id.button5a) {
-                        // Print button is focused
+                    }
+                    // Check if it's buttonG
+                    else if (currentFocus.getId() == R.id.buttonG) {
+                        if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
+                            ((AFragment) visibleFragment).performGButtonAction();
+                            return true;
+                        }
+                    }
+                    // Check if it's button4a (Save)
+                    else if (currentFocus.getId() == R.id.button4a) {
                         if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                             ((AFragment) visibleFragment).performPrintAction();
                             return true;
                         }
-                    } else {
-                        // For other buttons, try to find next focusable view
+                    }
+                    // Check if it's button5a (Print)
+                    else if (currentFocus.getId() == R.id.button5a) {
+                        if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
+                            ((AFragment) visibleFragment).performPrintAction();
+                            return true;
+                        }
+                    }
+                    // For other buttons, just move focus
+                    else {
                         View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
-
                         if (nextView != null) {
                             nextView.requestFocus();
                             return true;
                         } else {
-                            // Try right
                             nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
                             if (nextView != null) {
                                 nextView.requestFocus();
@@ -684,7 +702,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             }
                         }
 
-                        // If no next view, perform button click
+                        // If no next view, perform click
                         if (currentFocus instanceof Button) {
                             ((Button) currentFocus).performClick();
                             return true;
@@ -695,20 +713,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     }
                     return true;
                 }
-
-                // Let ENTER perform its default action for other views
                 return false;
             }
 
             // Handle T key for tare button (only if no EditText is focused)
             if ((keyCode == KeyEvent.KEYCODE_T) && !isEditTextFocused) {
-                // Check if Fragment A is visible
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performTButtonAction();
                     return true;
                 } else {
-                    // If Fragment A is not visible, just click the button if it exists
                     if (buttonT != null) {
                         buttonT.performClick();
                         return true;
@@ -719,13 +733,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
             // Handle G key for gross button (only if no EditText is focused)
             if ((keyCode == KeyEvent.KEYCODE_G) && !isEditTextFocused) {
-                // Check if Fragment A is visible
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performGButtonAction();
                     return true;
                 } else {
-                    // If Fragment A is not visible, just click the button if it exists
                     if (buttonG != null) {
                         buttonG.performClick();
                         return true;
@@ -736,7 +748,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
             // Handle M key for manual tare button (only if no EditText is focused)
             if ((keyCode == KeyEvent.KEYCODE_M) && !isEditTextFocused) {
-                // Check if Fragment A is visible
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performMButtonAction();
@@ -760,69 +771,61 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return super.dispatchKeyEvent(event);
     }
     // Add this method to setup focus change listeners for buttons
-        private void setupButtonFocusListeners() {
-        // Setup focus change listener for button T
+    private void setupButtonFocusListeners() {
         if (buttonT != null) {
             buttonT.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
                     if (hasFocus) {
-                        // Button gained focus
-                        buttonT.setBackgroundColor(Color.parseColor("#FFA500")); // Orange color
+                        buttonT.setBackgroundColor(Color.parseColor("#FFA500"));
                         buttonT.setTextColor(Color.WHITE);
                     } else {
-                        // Button lost focus
-                        buttonT.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonT.setBackgroundColor(Color.parseColor("#808080"));
                         buttonT.setTextColor(Color.BLACK);
                     }
                 }
             });
         }
 
-        // Setup focus change listener for button G
         if (buttonG != null) {
             buttonG.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
                     if (hasFocus) {
-                        // Button gained focus
-                        buttonG.setBackgroundColor(Color.parseColor("#00FF00")); // Green color
+                        buttonG.setBackgroundColor(Color.parseColor("#00FF00"));
                         buttonG.setTextColor(Color.WHITE);
                     } else {
-                        // Button lost focus
-                        buttonG.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonG.setBackgroundColor(Color.parseColor("#808080"));
                         buttonG.setTextColor(Color.BLACK);
                     }
                 }
             });
         }
 
-        // Setup focus change listener for button A (if exists)
         if (buttonA != null) {
             buttonA.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
                     if (hasFocus) {
-                        buttonA.setBackgroundColor(Color.parseColor("#FFA500")); // Orange color
+                        buttonA.setBackgroundColor(Color.parseColor("#FFA500"));
                         buttonA.setTextColor(Color.WHITE);
                     } else {
-                        buttonA.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonA.setBackgroundColor(Color.parseColor("#808080"));
                         buttonA.setTextColor(Color.BLACK);
                     }
                 }
             });
         }
 
-        // Setup focus change listener for button B (if exists)
         if (buttonB != null) {
             buttonB.setOnFocusChangeListener(new View.OnFocusChangeListener() {
                 @Override
                 public void onFocusChange(View v, boolean hasFocus) {
                     if (hasFocus) {
-                        buttonB.setBackgroundColor(Color.parseColor("#00FF00")); // Green color
+                        buttonB.setBackgroundColor(Color.parseColor("#00FF00"));
                         buttonB.setTextColor(Color.WHITE);
                     } else {
-                        buttonB.setBackgroundColor(Color.parseColor("#808080")); // Gray color
+                        buttonB.setBackgroundColor(Color.parseColor("#808080"));
                         buttonB.setTextColor(Color.BLACK);
                     }
                 }
@@ -838,15 +841,15 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         @SuppressLint("WrongConstant") View nextView = currentView.focusSearch(direction);
 
-        // Keep searching until we find a focusable view or run out of candidates
         while (nextView != null && !nextView.isFocusable()) {
             @SuppressLint("WrongConstant") View tempView = nextView.focusSearch(direction);
-            if (tempView == null || tempView == nextView) break; // Prevent infinite loop
+            if (tempView == null || tempView == nextView) break;
             nextView = tempView;
         }
 
         return nextView;
     }
+
     /**
      * Helper method to find the next EditText in a specific direction
      */
@@ -855,10 +858,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         @SuppressLint("WrongConstant") View nextView = currentView.focusSearch(direction);
 
-        // Keep searching until we find an EditText or run out of candidates
         while (nextView != null && !(nextView instanceof EditText)) {
             @SuppressLint("WrongConstant") View tempView = nextView.focusSearch(direction);
-            if (tempView == null || tempView == nextView) break; // Prevent infinite loop
+            if (tempView == null || tempView == nextView) break;
             nextView = tempView;
         }
 
@@ -902,7 +904,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
      * Helper method to find the first focusable view in the layout
      */
     private View findFirstFocusableView() {
-        // Try to find the view with the next focus forward ID in the root view
         View rootView = findViewById(android.R.id.content);
         if (rootView != null) {
             return findFirstFocusableInView(rootView);
@@ -953,7 +954,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         if (address != null) {
             connectToDevice(address, info_address);
         } else {
-            // Try to auto-connect to last used device
             tryAutoConnect();
         }
     }
@@ -1066,7 +1066,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     private void connectToDevice(String address, String info) {
-        // Prevent too frequent connection attempts
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastConnectionAttemptTime < MIN_CONNECTION_INTERVAL_MS) {
             Log.d("Connect", "Connection attempt too frequent, skipping");
@@ -1079,7 +1078,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return;
         }
 
-        // Ensure any old connection is cleaned up
         if (!isCleaningUp.get()) {
             cleanupConnection();
         }
@@ -1136,12 +1134,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 case BluetoothConnectionManager.CONNECTION_SUCCESS:
                     updateConnectionUI(true);
                     saveDeviceForAutoConnect();
-                  //  Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                     break;
 
                 case BluetoothConnectionManager.CONNECTION_FAILED:
                     updateConnectionUI(false);
-                   // Toast.makeText(this, "Bluetooth connection failed: " + message, Toast.LENGTH_LONG).show();
                     break;
             }
         });
@@ -1157,7 +1153,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         runOnUiThread(() -> {
             Log.d("Connection", "Connection lost");
             updateConnectionUI(false);
-           // Toast.makeText(this, "Bluetooth connection lost", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -1222,6 +1217,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             });
         } else if (id == R.id.action_toggle_auto_connect) {
             toggleAutoConnect();
+        } else if (id == R.id.action_report) {
+            toggleReportFragment();
         }
 
         drawerLayout.closeDrawer(GravityCompat.START);
@@ -1235,29 +1232,21 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         boolean newState = !isAutoConnectEnabled.get();
         isAutoConnectEnabled.set(newState);
 
-        // Save preference
         autoConnectPrefs.edit()
                 .putBoolean(PREF_AUTO_CONNECT, newState)
                 .apply();
 
-        // Update menu item if needed
         invalidateOptionsMenu();
 
         String message = newState ? "Auto-connect enabled" : "Auto-connect disabled";
-       // Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
-        // If enabling and not connected, try to auto-connect
         if (newState && !isConnected.get()) {
-            // Clean up first
             cleanupConnection();
-            // Add delay before auto-connect
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 tryAutoConnect();
             }, 2000);
         } else if (!newState) {
-            // Stop any ongoing reconnection attempts
             stopReconnectionAttempts();
-            // Disconnect if connected
             if (isConnected.get()) {
                 executeInBackground(() -> {
                     bluetoothManager.disconnect();
@@ -1271,7 +1260,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         adb.setMessage("Are you sure you want to exit application?");
         adb.setPositiveButton("OK", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
-                // Clean up before exiting
                 cleanupConnection();
                 stopReconnectionAttempts();
                 dialog.dismiss();
@@ -1280,7 +1268,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         });
         adb.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int which) {
-               // Toast.makeText(MainActivity.this, "Cancel", Toast.LENGTH_SHORT).show();
                 dialog.dismiss();
             }
         });
@@ -1303,7 +1290,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_device_list, menu);
 
-        // Update auto-connect menu item if exists
         MenuItem autoConnectItem = menu.findItem(R.id.action_toggle_auto_connect);
         if (autoConnectItem != null) {
             autoConnectItem.setTitle(isAutoConnectEnabled.get() ?
@@ -1331,6 +1317,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return true;
         } else if (id == R.id.action_toggle_auto_connect) {
             toggleAutoConnect();
+            return true;
+        } else if (id == R.id.action_report) {
+            toggleReportFragment();
             return true;
         }
 
@@ -1500,9 +1489,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             String address = info.substring(info.length() - 17);
 
             if (checkBluetoothPermissions(MainActivity.this)) {
-                // Clean up before connecting to new device
                 cleanupConnection();
-                // Add delay before connecting
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     connectToDevice(address, info);
                 }, 1000);
@@ -1540,9 +1527,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         Log.d("MainActivity", "Broadcast receiver registered successfully");
 
-        // Check connection status and try auto-connect if needed
         if (!isBluetoothConnected() && isAutoConnectEnabled.get()) {
-            // Add delay before auto-connect to ensure everything is ready
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 tryAutoConnect();
             }, 2000);
@@ -1567,12 +1552,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         switch (status) {
             case BluetoothConnectionManager.CONNECTION_SUCCESS:
                 updateConnectionUI(true);
-              //  Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                 break;
 
             case BluetoothConnectionManager.CONNECTION_FAILED:
                 updateConnectionUI(false);
-               // Toast.makeText(this, "Disconnected: " + message, Toast.LENGTH_LONG).show();
                 break;
         }
     }
@@ -1587,11 +1570,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         stopReconnectionAttempts();
         reconnectHandler.removeCallbacksAndMessages(null);
 
-        // Final cleanup
         cleanupConnection();
 
         if (bluetoothManager != null) {
-            bluetoothManager.release(); // Make sure to release all resources
+            bluetoothManager.release();
         }
     }
 }

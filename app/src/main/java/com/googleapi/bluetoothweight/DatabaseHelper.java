@@ -214,4 +214,148 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.close();
         return exists;
     }
+
+
+    // Get unique values for dropdowns
+    public List<String> getUniqueVehicleTypes() {
+        List<String> list = new ArrayList<>();
+        list.add("All"); // Add default option
+
+        String query = "SELECT DISTINCT " + COLUMN_VEHICLE_TYPE + " FROM " + TABLE_WEIGHMENT
+                + " WHERE " + COLUMN_VEHICLE_TYPE + " IS NOT NULL AND "
+                + COLUMN_VEHICLE_TYPE + " != '' ORDER BY " + COLUMN_VEHICLE_TYPE;
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                list.add(cursor.getString(0));
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    public List<String> getUniqueMaterials() {
+        List<String> list = new ArrayList<>();
+        list.add("All");
+
+        String query = "SELECT DISTINCT " + COLUMN_MATERIAL + " FROM " + TABLE_WEIGHMENT
+                + " WHERE " + COLUMN_MATERIAL + " IS NOT NULL AND "
+                + COLUMN_MATERIAL + " != '' ORDER BY " + COLUMN_MATERIAL;
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                list.add(cursor.getString(0));
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    public List<String> getUniqueParties() {
+        List<String> list = new ArrayList<>();
+        list.add("All");
+
+        String query = "SELECT DISTINCT " + COLUMN_PARTY + " FROM " + TABLE_WEIGHMENT
+                + " WHERE " + COLUMN_PARTY + " IS NOT NULL AND "
+                + COLUMN_PARTY + " != '' ORDER BY " + COLUMN_PARTY;
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor.moveToFirst()) {
+            do {
+                list.add(cursor.getString(0));
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return list;
+    }
+
+    // Search method with filters
+    public List<WeighmentEntry> searchWeighments(String vehicleType, String material,
+                                                 String party, String fromDate, String toDate) {
+        List<WeighmentEntry> entryList = new ArrayList<>();
+
+        StringBuilder queryBuilder = new StringBuilder();
+        queryBuilder.append("SELECT * FROM ").append(TABLE_WEIGHMENT).append(" WHERE 1=1");
+
+        List<String> args = new ArrayList<>();
+
+        if (vehicleType != null && !vehicleType.isEmpty() && !vehicleType.equals("All")) {
+            queryBuilder.append(" AND ").append(COLUMN_VEHICLE_TYPE).append(" = ?");
+            args.add(vehicleType);
+        }
+
+        if (material != null && !material.isEmpty() && !material.equals("All")) {
+            queryBuilder.append(" AND ").append(COLUMN_MATERIAL).append(" = ?");
+            args.add(material);
+        }
+
+        if (party != null && !party.isEmpty() && !party.equals("All")) {
+            queryBuilder.append(" AND ").append(COLUMN_PARTY).append(" = ?");
+            args.add(party);
+        }
+
+        if (fromDate != null && !fromDate.isEmpty()) {
+            queryBuilder.append(" AND date(").append(COLUMN_TIMESTAMP).append(") >= ?");
+            args.add(fromDate);
+        }
+
+        if (toDate != null && !toDate.isEmpty()) {
+            queryBuilder.append(" AND date(").append(COLUMN_TIMESTAMP).append(") <= ?");
+            args.add(toDate);
+        }
+
+        queryBuilder.append(" ORDER BY ").append(COLUMN_TIMESTAMP).append(" DESC");
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(queryBuilder.toString(), args.toArray(new String[0]));
+
+        if (cursor.moveToFirst()) {
+            do {
+                WeighmentEntry entry = new WeighmentEntry();
+                entry.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+                entry.setSerialNo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SERIAL_NO)));
+                entry.setVehicleNo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_VEHICLE_NO)));
+                entry.setVehicleType(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_VEHICLE_TYPE)));
+                entry.setMaterial(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MATERIAL)));
+                entry.setParty(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PARTY)));
+                entry.setGross(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GROSS)));
+                entry.setTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TARE)));
+                entry.setManualTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MANUAL_TARE)));
+                entry.setNet(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NET)));
+                entry.setTimestamp(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)));
+                entryList.add(entry);
+            } while (cursor.moveToNext());
+        }
+
+        cursor.close();
+        db.close();
+        return entryList;
+    }
+
+    // Get total net weight sum
+    public long getTotalNetWeight(List<WeighmentEntry> entries) {
+        long total = 0;
+        for (WeighmentEntry entry : entries) {
+            try {
+                total += Long.parseLong(entry.getNet());
+            } catch (NumberFormatException e) {
+                // Ignore parsing errors
+            }
+        }
+        return total;
+    }
 }
