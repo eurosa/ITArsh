@@ -154,8 +154,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        buttonT = findViewById(R.id.buttonT);
-        buttonG = findViewById(R.id.buttonG);
+
         Drawable drawable = toolbar.getOverflowIcon();
         if (drawable != null) {
             drawable = DrawableCompat.wrap(drawable);
@@ -238,7 +237,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         // Initial UI state
         updateUIBasedOnState();
-        setupButtonFocusListeners();
+
         setupClock();
     }
 
@@ -587,6 +586,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 if (aFragment != null) {
                     aFragment.performGButtonActionClear();
                 }
+                if (bFragment != null) {
+                    bFragment.performGButtonActionClear();
+                }
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                     return true;
@@ -597,87 +599,28 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 return true;
             }
 
-            // Handle F5 key for Report Fragment
-            if (keyCode == KeyEvent.KEYCODE_F5) {
-                toggleReportFragment();
-                return true;
-            }
+
 
             View currentFocus = getCurrentFocus();
             boolean isEditTextFocused = currentFocus instanceof EditText;
             boolean isButtonFocused = currentFocus instanceof Button ||
                     currentFocus instanceof androidx.appcompat.widget.AppCompatButton;
 
-            if (keyCode == KeyEvent.KEYCODE_TAB) {
-                if (isEditTextFocused) {
-                    int direction = event.isShiftPressed() ? View.FOCUS_BACKWARD : View.FOCUS_FORWARD;
-                    View nextView = findNextEditText(currentFocus, direction);
-                    if (nextView != null) {
-                        nextView.requestFocus();
-                        return true;
-                    }
-                }
-                return false;
-            }
 
             // Handle ENTER key for all focused views
             if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
 
-                // Case 1: EditText has focus
-                if (isEditTextFocused) {
-                    EditText currentEditText = (EditText) currentFocus;
-                    int inputType = currentEditText.getInputType();
-                    boolean isNumberEditText = (inputType & InputType.TYPE_CLASS_NUMBER) != 0;
-
-                    if (isNumberEditText) {
-                        View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
-                        if (nextView != null) {
-                            nextView.requestFocus();
-                            return true;
-                        } else {
-                            nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
-                            if (nextView != null) {
-                                nextView.requestFocus();
-                                return true;
-                            }
-                        }
-                        return true;
-                    } else {
-                        View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
-                        if (nextView != null) {
-                            nextView.requestFocus();
-                            return true;
-                        } else {
-                            nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
-                            if (nextView != null) {
-                                nextView.requestFocus();
-                                return true;
-                            }
-                        }
-                        return false;
-                    }
-                }
-
                 // Case 2: Button has focus
-                else if (isButtonFocused) {
-                    // Check if it's buttonT
-                    if (currentFocus.getId() == R.id.buttonT) {
-                        if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
-                            ((AFragment) visibleFragment).performTButtonAction();
-                            return true;
-                        }
-                    }
-                    // Check if it's buttonG
-                    else if (currentFocus.getId() == R.id.buttonG) {
-                        if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
-                            ((AFragment) visibleFragment).performGButtonAction();
-                            return true;
-                        }
-                    }
+                  if (isButtonFocused) {
+
                     // Check if it's button4a (Save)
-                    else if (currentFocus.getId() == R.id.button4a) {
+                     if (currentFocus.getId() == R.id.button4a) {
                         if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                             ((AFragment) visibleFragment).performPrintAction();
+                            return true;
+                        }
+                        if (visibleFragment instanceof BFragment && visibleFragment.isVisible()) {
+                            ((BFragment) visibleFragment).finalizeWeighmentEntry();
                             return true;
                         }
                     }
@@ -688,29 +631,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             return true;
                         }
                     }
-                    // For other buttons, just move focus
-                    else {
-                        View nextView = findNextFocusableView(currentFocus, View.FOCUS_DOWN);
-                        if (nextView != null) {
-                            nextView.requestFocus();
-                            return true;
-                        } else {
-                            nextView = findNextFocusableView(currentFocus, View.FOCUS_RIGHT);
-                            if (nextView != null) {
-                                nextView.requestFocus();
-                                return true;
-                            }
-                        }
 
-                        // If no next view, perform click
-                        if (currentFocus instanceof Button) {
-                            ((Button) currentFocus).performClick();
-                            return true;
-                        } else if (currentFocus instanceof androidx.appcompat.widget.AppCompatButton) {
-                            ((androidx.appcompat.widget.AppCompatButton) currentFocus).performClick();
-                            return true;
-                        }
-                    }
+
                     return true;
                 }
                 return false;
@@ -722,14 +644,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performTButtonAction();
                     return true;
-                } else {
-                    if (buttonT != null) {
-                        buttonT.performClick();
-                        return true;
-                    }
                 }
+
+                if (visibleFragment instanceof BFragment && visibleFragment.isVisible()) {
+                    BFragment bFragment = (BFragment) visibleFragment;
+                    bFragment.performTButtonAction();
+                    return true;
+                }
+
                 return true;
             }
+
 
             // Handle G key for gross button (only if no EditText is focused)
             if ((keyCode == KeyEvent.KEYCODE_G) && !isEditTextFocused) {
@@ -737,17 +662,22 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performGButtonAction();
                     return true;
-                } else {
-                    if (buttonG != null) {
-                        buttonG.performClick();
-                        return true;
-                    }
                 }
+                if (visibleFragment instanceof BFragment && visibleFragment.isVisible()) {
+                    BFragment bFragment = (BFragment) visibleFragment;
+                    bFragment.performGButtonAction();
+                    return true;
+                }
+
                 return true;
             }
-
+            // Handle F5 key for Report Fragment
+            if (keyCode == KeyEvent.KEYCODE_F5) {
+                toggleReportFragment();
+                return true;
+            }
             // Handle M key for manual tare button (only if no EditText is focused)
-            if ((keyCode == KeyEvent.KEYCODE_M) && !isEditTextFocused) {
+            if ((keyCode == KeyEvent.KEYCODE_M)) {
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performMButtonAction();
@@ -771,67 +701,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return super.dispatchKeyEvent(event);
     }
     // Add this method to setup focus change listeners for buttons
-    private void setupButtonFocusListeners() {
-        if (buttonT != null) {
-            buttonT.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus) {
-                        buttonT.setBackgroundColor(Color.parseColor("#FFA500"));
-                        buttonT.setTextColor(Color.WHITE);
-                    } else {
-                        buttonT.setBackgroundColor(Color.parseColor("#808080"));
-                        buttonT.setTextColor(Color.BLACK);
-                    }
-                }
-            });
-        }
 
-        if (buttonG != null) {
-            buttonG.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus) {
-                        buttonG.setBackgroundColor(Color.parseColor("#00FF00"));
-                        buttonG.setTextColor(Color.WHITE);
-                    } else {
-                        buttonG.setBackgroundColor(Color.parseColor("#808080"));
-                        buttonG.setTextColor(Color.BLACK);
-                    }
-                }
-            });
-        }
-
-        if (buttonA != null) {
-            buttonA.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus) {
-                        buttonA.setBackgroundColor(Color.parseColor("#FFA500"));
-                        buttonA.setTextColor(Color.WHITE);
-                    } else {
-                        buttonA.setBackgroundColor(Color.parseColor("#808080"));
-                        buttonA.setTextColor(Color.BLACK);
-                    }
-                }
-            });
-        }
-
-        if (buttonB != null) {
-            buttonB.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    if (hasFocus) {
-                        buttonB.setBackgroundColor(Color.parseColor("#00FF00"));
-                        buttonB.setTextColor(Color.WHITE);
-                    } else {
-                        buttonB.setBackgroundColor(Color.parseColor("#808080"));
-                        buttonB.setTextColor(Color.BLACK);
-                    }
-                }
-            });
-        }
-    }
 
     /**
      * Helper method to find the next focusable view in a specific direction

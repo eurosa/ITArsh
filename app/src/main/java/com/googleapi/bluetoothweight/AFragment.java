@@ -277,6 +277,7 @@ public class AFragment extends Fragment {
      * Toggle manual EditText enabled/disabled state
      */
     private void toggleManualEditText() {
+
         isManualEditTextEnabled = !isManualEditTextEnabled;
 
         if (isManualEditTextEnabled) {
@@ -320,16 +321,83 @@ public class AFragment extends Fragment {
 
        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
     }
+    private void enableTareText() {
+        tareEditText.setEnabled(true);
+        tareEditText.setFocusable(true);
+        tareEditText.setFocusableInTouchMode(true);
+        tareEditText.setClickable(true);
+        tareEditText.setAlpha(1.0f); // Full opacity when enabled
+        tareEditText.requestFocus();
+
+       // Toast.makeText(getActivity(), "Manual tare enabled", Toast.LENGTH_SHORT).show();
+
+        // Show keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(tareEditText, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    /**
+     * Disable manual EditText
+     */
+    private void disableTareText() {
+        tareEditText.setEnabled(false);
+        tareEditText.setFocusable(false);
+        tareEditText.setFocusableInTouchMode(false);
+        tareEditText.setClickable(false);
+        tareEditText.setAlpha(0.5f); // Dimmed when disabled
+
+        // Hide keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(tareEditText.getWindowToken(), 0);
+
+       // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
+    }
+    private void enableGrossEditText() {
+        grossEditText.setEnabled(true);
+        grossEditText.setFocusable(true);
+        grossEditText.setFocusableInTouchMode(true);
+        grossEditText.setClickable(true);
+        grossEditText.setAlpha(1.0f); // Full opacity when enabled
+        grossEditText.requestFocus();
+
+       // Toast.makeText(getActivity(), "Manual tare enabled", Toast.LENGTH_SHORT).show();
+
+        // Show keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(grossEditText, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    /**
+     * Disable manual EditText
+     */
+    private void disableGrossEditText() {
+        grossEditText.setEnabled(false);
+        grossEditText.setFocusable(false);
+        grossEditText.setFocusableInTouchMode(false);
+        grossEditText.setClickable(false);
+        grossEditText.setAlpha(0.5f); // Dimmed when disabled
+
+        // Hide keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(grossEditText.getWindowToken(), 0);
+
+       // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
+    }
 
     /**
      * Method to perform T button action (called from MainActivity)
      */
     public void performTButtonAction() {
         // Same logic as button T click
-        buttonT.requestFocus();
+        if (grossEditText.getText() != null &&
+                !grossEditText.getText().toString().trim().isEmpty()) {
+            button4a.requestFocus();
+            return;
+        }
        // Toast.makeText(getActivity(), "T button pressed via keyboard", Toast.LENGTH_SHORT).show();
         if (mainActivity != null && mainActivity.txtCounter != null) {
             tareEditText.setText(mainActivity.txtCounter.getText().toString().trim());
+            button4a.requestFocus();
         }
     }
     // Add these methods to your AFragment class
@@ -353,10 +421,16 @@ public class AFragment extends Fragment {
      */
     public void performGButtonAction() {
         // Same logic as button G click
-        buttonG.requestFocus();
+        // Same logic as button T click
+        if (tareEditText.getText() != null &&
+                !tareEditText.getText().toString().trim().isEmpty()) {
+            button4a.requestFocus();
+            return;
+        }
       //  Toast.makeText(getActivity(), "G button pressed via keyboard", Toast.LENGTH_SHORT).show();
         if (mainActivity != null && mainActivity.txtCounter != null) {
             grossEditText.setText(mainActivity.txtCounter.getText().toString().trim());
+            button4a.requestFocus();
         }
     }
     public void performGButtonActionClear() {
@@ -369,8 +443,12 @@ public class AFragment extends Fragment {
      * Toggles manual EditText enabled/disabled state
      */
     public void performMButtonAction() {
-     //   Toast.makeText(getActivity(), "M button pressed via keyboard", Toast.LENGTH_SHORT).show();
-        toggleManualEditText();
+        Toast.makeText(getActivity(), "M button pressed via keyboard", Toast.LENGTH_SHORT).show();
+        if (grossEditText.getText() != null &&
+                !grossEditText.getText().toString().trim().isEmpty()) {
+            toggleManualEditText();
+        }
+
     }
     private void setupButtonFocusListeners() {
         // Setup focus change listener for button T
@@ -412,22 +490,7 @@ public class AFragment extends Fragment {
             });
 
             // Set key listener for Enter key on button G
-            buttonG.setOnKeyListener(new View.OnKeyListener() {
-                @Override
-                public boolean onKey(View v, int keyCode, KeyEvent event) {
-                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                        if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                            // Call performGButtonAction when Enter is pressed
-                            performGButtonAction();
 
-                            // Optional: Move focus to next view after action
-                            moveToNextFocus(v);
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-            });
         }
 
         // Setup for button4a (Save button)

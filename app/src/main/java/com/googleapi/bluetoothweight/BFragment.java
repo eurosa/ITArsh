@@ -61,12 +61,37 @@ public class BFragment extends Fragment {
         setupGrossTareFunctionality();
         setupActionButtons();
         setupButtonFocusListeners();
-        setupRegularFieldNavigation();
+      //  setupRegularFieldNavigation();
         setupTGMButtons();
-
+        disableGrossEditText();
+        disableTareEditText();
+        disableNetWeightEditText();
         return view;
     }
+    public void performGButtonActionClear() {
+        // Same logic as button G click
+        clearAllFields();
+    }
+    private void clearAllFields() {
+        vehicleNoEditText.setText("");
+        vehicleEditText.setText("");
+        materialEditText.setText("");
+        partyEditText.setText("");
+        chargeEditText.setText("");
+        grossEditText.setText("");
+        tareEditText.setText("");
 
+        netWeightEditText.setText("");
+
+
+
+
+        // Reset manual EditText to disabled state
+        disableGrossEditText();
+        disableTareEditText();
+        disableNetWeightEditText();
+
+    }
     private void initViews(View view) {
         // Search field
         searchSerialEditText = view.findViewById(R.id.searchSerialEditText);
@@ -104,15 +129,15 @@ public class BFragment extends Fragment {
         // Setup focus for buttons
         button4a.setFocusable(true);
         button4a.setFocusableInTouchMode(true);
-        buttonT.setFocusable(true);
-        buttonT.setFocusableInTouchMode(true);
-        buttonG.setFocusable(true);
-        buttonG.setFocusableInTouchMode(true);
+        //buttonT.setFocusable(true);
+       // buttonT.setFocusableInTouchMode(true);
+       // buttonG.setFocusable(true);
+       // buttonG.setFocusableInTouchMode(true);
 
         // Set focus chain
-        searchSerialEditText.setNextFocusDownId(R.id.buttonT);
-        buttonT.setNextFocusDownId(R.id.buttonG);
-        buttonG.setNextFocusDownId(R.id.vehicleNoEditText);
+       // searchSerialEditText.setNextFocusDownId(R.id.buttonT);
+       // buttonT.setNextFocusDownId(R.id.buttonG);
+        //buttonG.setNextFocusDownId(R.id.vehicleNoEditText);
 
         // Set IME options
        // searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
@@ -131,9 +156,9 @@ public class BFragment extends Fragment {
         materialEditText.setEnabled(finalEnabled);
         partyEditText.setEnabled(finalEnabled);
         chargeEditText.setEnabled(finalEnabled);
-        grossEditText.setEnabled(finalEnabled);
-        tareEditText.setEnabled(finalEnabled);
-        netWeightEditText.setEnabled(finalEnabled);
+       // grossEditText.setEnabled(finalEnabled);
+       // tareEditText.setEnabled(finalEnabled);
+       // netWeightEditText.setEnabled(finalEnabled);
 
         vehicleNoEditText.setFocusable(finalEnabled);
         vehicleNoEditText.setFocusableInTouchMode(finalEnabled);
@@ -145,12 +170,12 @@ public class BFragment extends Fragment {
         partyEditText.setFocusableInTouchMode(finalEnabled);
         chargeEditText.setFocusable(finalEnabled);
         chargeEditText.setFocusableInTouchMode(finalEnabled);
-        grossEditText.setFocusable(finalEnabled);
-        grossEditText.setFocusableInTouchMode(finalEnabled);
-        tareEditText.setFocusable(finalEnabled);
-        tareEditText.setFocusableInTouchMode(finalEnabled);
-        netWeightEditText.setFocusable(finalEnabled);
-        netWeightEditText.setFocusableInTouchMode(finalEnabled);
+        //grossEditText.setFocusable(finalEnabled);
+        //grossEditText.setFocusableInTouchMode(finalEnabled);
+       // tareEditText.setFocusable(finalEnabled);
+        //tareEditText.setFocusableInTouchMode(finalEnabled);
+       // netWeightEditText.setFocusable(finalEnabled);
+      //  netWeightEditText.setFocusableInTouchMode(finalEnabled);
 
         float alpha = finalEnabled ? 1.0f : 0.6f;
         vehicleNoEditText.setAlpha(alpha);
@@ -217,13 +242,14 @@ public class BFragment extends Fragment {
 
         // Hardware key listener for physical Enter key
         searchSerialEditText.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+           // if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
                     Log.d("BFragment", "Physical Enter on search field");
+
                     loadEntry();
                     return true; // Consume the event
                 }
-            }
+          //  }
             return false;
         });
     }
@@ -231,105 +257,29 @@ public class BFragment extends Fragment {
     /**
      * Setup gross and tare fields with Enter key functionality
      */
-    private void setupGrossTareFunctionality() {
-        // Gross field - should trigger G action on Enter
-        setupEnterKeyHandler(grossEditText, "gross", true);
 
-        // Tare field - should trigger T action on Enter
-        setupEnterKeyHandler(tareEditText, "tare", false);
-    }
 
     /**
      * Simple Enter key handler for EditText fields
      */
-    private void setupEnterKeyHandler(EditText editText, String fieldName, boolean isGross) {
-        if (editText == null) return;
 
-        // Clear any existing listeners
-        editText.setOnEditorActionListener(null);
-        editText.setOnKeyListener(null);
 
-        // Handle physical Enter key press
-        editText.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                    Log.d("BFragment", "Physical Enter pressed on " + fieldName + " field");
-
-                    // Only process if entry is not finalized and field is enabled
-                    if (!isEntryFinalized && editText.isEnabled()) {
-                        String newValue = getCounterValue();
-                        if (!newValue.isEmpty()) {
-                            if (isGross) {
-                                handleGButtonAction(newValue);
-                            } else {
-                                handleTButtonAction(newValue);
-                            }
-
-                            // Move to next field
-                            if (isGross) {
-                                if (tareEditText.isEnabled()) {
-                                    tareEditText.requestFocus();
-                                }
-                            } else {
-                                if (button4a != null && button4a.isEnabled()) {
-                                    button4a.requestFocus();
-                                }
-                            }
-                        } else {
-                            Toast.makeText(getActivity(), "No value from scale", Toast.LENGTH_SHORT).show();
-                        }
-                    } else if (isEntryFinalized) {
-                        Toast.makeText(getActivity(), "Entry is finalized", Toast.LENGTH_SHORT).show();
-                    }
-                    return true; // Consume the event
-                }
-            }
-            return false;
-        });
-
-        // Handle soft keyboard IME actions
-        editText.setOnEditorActionListener((v, actionId, event) -> {
-            Log.d("BFragment", fieldName + " field IME action: " + actionId);
-
-            if (actionId == EditorInfo.IME_ACTION_DONE ||
-                    actionId == EditorInfo.IME_ACTION_NEXT ||
-                    actionId == EditorInfo.IME_ACTION_GO ||
-                    actionId == EditorInfo.IME_ACTION_SEARCH) {
-
-                if (!isEntryFinalized && editText.isEnabled()) {
-                    String newValue = getCounterValue();
-                    if (!newValue.isEmpty()) {
-                        if (isGross) {
-                            handleGButtonAction(newValue);
-                        } else {
-                            handleTButtonAction(newValue);
-                        }
-
-                        // Move to next field
-                        if (isGross) {
-                            if (tareEditText.isEnabled()) {
-                                tareEditText.requestFocus();
-                            }
-                        } else {
-                            if (button4a != null && button4a.isEnabled()) {
-                                button4a.requestFocus();
-                            }
-                        }
-                    } else {
-                        Toast.makeText(getActivity(), "No value from scale", Toast.LENGTH_SHORT).show();
-                    }
-                }
-                return true;
-            }
-            return false;
-        });
-    }
+    /**
+     * Helper method to move to next field after gross/tare processing
+     */
 
     /**
      * Setup regular fields navigation
      */
+    /**
+     * Setup regular fields navigation
+     */
+    /**
+     * Setup regular fields navigation - Now returns focus to search field
+     */
     private void setupRegularFieldNavigation() {
         EditText[] regularFields = {
+                searchSerialEditText,
                 vehicleNoEditText,
                 vehicleEditText,
                 materialEditText,
@@ -378,29 +328,234 @@ public class BFragment extends Fragment {
     }
 
     /**
-     * Navigate to next enabled field
+     * Navigate to next enabled field - Returns to search after last field
      */
     private void navigateToNextField(EditText[] fields, int currentIndex) {
+        // First try to find next enabled field in the regular fields array
         if (currentIndex < fields.length - 1) {
-            // Find next enabled field
+            // Find next enabled field in the same group
             for (int j = currentIndex + 1; j < fields.length; j++) {
                 if (fields[j].isEnabled()) {
                     fields[j].requestFocus();
                     return;
                 }
             }
-            // If no more enabled fields in this group, go to gross
-            if (grossEditText.isEnabled()) {
-                grossEditText.requestFocus();
+        }
+
+        // If we've reached the end of regular fields, go to gross field
+        if (grossEditText != null && grossEditText.isEnabled()) {
+            grossEditText.requestFocus();
+            return;
+        }
+    }
+
+    /**
+     * Setup gross and tare fields with Enter key functionality
+     */
+    private void setupGrossTareFunctionality() {
+        // Gross field - should trigger G action on Enter, then move to tare
+        setupEnterKeyHandler(grossEditText, "gross", true);
+
+        // Tare field - should trigger T action on Enter, then move to search field
+        setupEnterKeyHandler(tareEditText, "tare", false);
+    }
+
+    /**
+     * Simple Enter key handler for EditText fields
+     */
+    private void setupEnterKeyHandler(EditText editText, String fieldName, boolean isGross) {
+        if (editText == null) return;
+
+        // Clear any existing listeners
+        editText.setOnEditorActionListener(null);
+        editText.setOnKeyListener(null);
+
+        // Handle physical Enter key press
+        editText.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                    Log.d("BFragment", "Physical Enter pressed on " + fieldName + " field");
+
+                    // Only process if entry is not finalized and field is enabled
+                    if (!isEntryFinalized && editText.isEnabled()) {
+                        String newValue = getCounterValue();
+                        if (!newValue.isEmpty()) {
+                            if (isGross) {
+                                handleGButtonAction(newValue);
+                            } else {
+                                handleTButtonAction(newValue);
+                            }
+                        } else {
+                            Toast.makeText(getActivity(), "No value from scale", Toast.LENGTH_SHORT).show();
+                        }
+
+                        // Move to next field after processing
+                        moveToNextFieldAfterGrossTare(isGross);
+
+                    } else if (isEntryFinalized) {
+                        Toast.makeText(getActivity(), "Entry is finalized", Toast.LENGTH_SHORT).show();
+                        // Even if finalized, allow navigation back to search
+                        moveToNextFieldAfterGrossTare(isGross);
+                    }
+                    return true; // Consume the event
+                }
+            }
+            return false;
+        });
+
+        // Handle soft keyboard IME actions
+        editText.setOnEditorActionListener((v, actionId, event) -> {
+            Log.d("BFragment", fieldName + " field IME action: " + actionId);
+
+            if (actionId == EditorInfo.IME_ACTION_DONE ||
+                    actionId == EditorInfo.IME_ACTION_NEXT ||
+                    actionId == EditorInfo.IME_ACTION_GO) {
+
+                if (!isEntryFinalized && editText.isEnabled()) {
+                    String newValue = getCounterValue();
+                    if (!newValue.isEmpty()) {
+                        if (isGross) {
+                            handleGButtonAction(newValue);
+                        } else {
+                            handleTButtonAction(newValue);
+                        }
+                    } else {
+                        Toast.makeText(getActivity(), "No value from scale", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                // Always move to next field after processing
+                moveToNextFieldAfterGrossTare(isGross);
+                return true;
+            }
+            return false;
+        });
+
+        // Set appropriate IME options
+        if (isGross) {
+            editText.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+        } else {
+            editText.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        }
+    }
+
+    /**
+     * Helper method to move to next field after gross/tare processing
+     * Returns focus to search field after tare
+     */
+    private void moveToNextFieldAfterGrossTare(boolean isGross) {
+        if (isGross) {
+            // From gross, move to tare if enabled
+            if (tareEditText != null && tareEditText.isEnabled()) {
+                tareEditText.requestFocus();
+            } else if (searchSerialEditText != null) {
+                // If tare is disabled, go back to search
+                searchSerialEditText.requestFocus();
+                searchSerialEditText.selectAll();
             }
         } else {
-            // Last regular field, go to gross if enabled
-            if (grossEditText.isEnabled()) {
-                grossEditText.requestFocus();
+            // From tare, ALWAYS return to search field
+            if (searchSerialEditText != null) {
+                searchSerialEditText.requestFocus();
+                searchSerialEditText.selectAll();
             }
         }
     }
 
+    /**
+     * Setup action buttons - Finalize returns to search
+     */
+    private void setupActionButtons() {
+        button4a.setOnClickListener(v -> {
+            if (!isEntryFinalized) {
+                finalizeWeighmentEntry();
+            } else {
+                Toast.makeText(getActivity(), "Entry is already finalized", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Handle Enter key on Finalize button
+        button4a.setOnKeyListener((v, keyCode, event) -> {
+            if (keyCode == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (!isEntryFinalized) {
+                    finalizeWeighmentEntry();
+                } else {
+                    Toast.makeText(getActivity(), "Entry is already finalized", Toast.LENGTH_SHORT).show();
+                    // Even if finalized, return to search
+                    if (searchSerialEditText != null) {
+                        searchSerialEditText.requestFocus();
+                        searchSerialEditText.selectAll();
+                    }
+                }
+                return true;
+            }
+            return false;
+        });
+    }
+
+    /**
+     * Navigate to next enabled field
+     */
+    /**
+     * Navigate to next enabled field
+     */
+    private void enableGrossEditText() {
+        grossEditText.setEnabled(true);
+        grossEditText.setFocusable(true);
+        grossEditText.setFocusableInTouchMode(true);
+        grossEditText.setClickable(true);
+        grossEditText.setAlpha(1.0f); // Full opacity when enabled
+        grossEditText.requestFocus();
+
+        // Toast.makeText(getActivity(), "Manual tare enabled", Toast.LENGTH_SHORT).show();
+
+        // Show keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(grossEditText, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    /**
+     * Disable manual EditText
+     */
+    private void disableGrossEditText() {
+        grossEditText.setEnabled(false);
+        grossEditText.setFocusable(false);
+        grossEditText.setFocusableInTouchMode(false);
+        grossEditText.setClickable(false);
+        grossEditText.setAlpha(0.5f); // Dimmed when disabled
+
+        // Hide keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(grossEditText.getWindowToken(), 0);
+
+        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
+    }
+    private void disableTareEditText() {
+        tareEditText.setEnabled(false);
+        tareEditText.setFocusable(false);
+        tareEditText.setFocusableInTouchMode(false);
+        tareEditText.setClickable(false);
+        tareEditText.setAlpha(0.5f); // Dimmed when disabled
+
+        // Hide keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(tareEditText.getWindowToken(), 0);
+
+        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
+    }
+    private void disableNetWeightEditText() {
+        netWeightEditText.setEnabled(false);
+        netWeightEditText.setFocusable(false);
+        netWeightEditText.setFocusableInTouchMode(false);
+        netWeightEditText.setClickable(false);
+        netWeightEditText.setAlpha(0.5f); // Dimmed when disabled
+
+        // Hide keyboard
+        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(tareEditText.getWindowToken(), 0);
+
+        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
+    }
     private void loadEntry() {
         String searchSerial = searchSerialEditText.getText().toString().trim();
         Log.d("BFragment", "Loading entry: " + searchSerial);
@@ -433,6 +588,19 @@ public class BFragment extends Fragment {
             // Compare and set gross/tare values
             compareAndSetGrossTare(entry);
 
+            if (!isEntryFinalized) {
+                // Use postDelayed to ensure view is ready
+                materialEditText.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        materialEditText.requestFocus();
+                        InputMethodManager keyboard = (InputMethodManager) getActivity()
+                                .getSystemService(Context.INPUT_METHOD_SERVICE);
+                        keyboard.showSoftInput(materialEditText, InputMethodManager.SHOW_IMPLICIT);
+                    }
+                }, 200); // 200ms delay
+            }
+
             if (isEntryFinalized) {
                 Toast.makeText(getActivity(), "Entry #" + searchSerial + " loaded (VIEW ONLY - Finalized)", Toast.LENGTH_LONG).show();
                 if (txtDisplayTwoView != null) {
@@ -440,10 +608,6 @@ public class BFragment extends Fragment {
                 }
             } else {
                 Toast.makeText(getActivity(), "Entry #" + searchSerial + " loaded (Editable)", Toast.LENGTH_SHORT).show();
-                // Move focus to first editable field if any are enabled
-                if (!isEntryFinalized) {
-                    vehicleNoEditText.requestFocus();
-                }
             }
         } else {
             Toast.makeText(getActivity(), "No entry found with Serial #" + searchSerial, Toast.LENGTH_SHORT).show();
@@ -699,30 +863,9 @@ public class BFragment extends Fragment {
         calculateNetWeight();
     }
 
-    private void setupActionButtons() {
-        button4a.setOnClickListener(v -> {
-            if (!isEntryFinalized) {
-                finalizeWeighmentEntry();
-            } else {
-                Toast.makeText(getActivity(), "Entry is already finalized", Toast.LENGTH_SHORT).show();
-            }
-        });
 
-        // Handle Enter key on Finalize button
-        button4a.setOnKeyListener((v, keyCode, event) -> {
-            if (keyCode == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (!isEntryFinalized) {
-                    finalizeWeighmentEntry();
-                } else {
-                    Toast.makeText(getActivity(), "Entry is already finalized", Toast.LENGTH_SHORT).show();
-                }
-                return true;
-            }
-            return false;
-        });
-    }
 
-    private void finalizeWeighmentEntry() {
+    public void finalizeWeighmentEntry() {
         String serialNo = serialEditText.getText().toString().trim();
         String vehicleNo = vehicleNoEditText.getText().toString().trim();
 
@@ -873,6 +1016,7 @@ public class BFragment extends Fragment {
 
     // Public methods for MainActivity
     public void performTButtonAction() {
+        button4a.requestFocus();
         if (!isEntryFinalized) {
             String newValue = getCounterValue();
             if (!newValue.isEmpty()) {
@@ -884,6 +1028,7 @@ public class BFragment extends Fragment {
     }
 
     public void performGButtonAction() {
+        button4a.requestFocus();
         if (!isEntryFinalized) {
             String newValue = getCounterValue();
             if (!newValue.isEmpty()) {
