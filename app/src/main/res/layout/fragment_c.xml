@@ -267,7 +267,6 @@
         android:background="#FFFFFF"
         android:scrollbars="vertical"/>
 
-    <!-- Export Button -->
     <!-- Update the export button at the bottom -->
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btnExport"

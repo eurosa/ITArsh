@@ -6,6 +6,8 @@ import androidx.fragment.app.Fragment;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
@@ -24,9 +26,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.print.PrintHelper;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class AFragment extends Fragment {
 
@@ -866,6 +872,88 @@ public class AFragment extends Fragment {
         }
     }
 
+
+    private void printUsingAndroidPrintFramework(WeighmentEntry entry) {
+        // Build print content as HTML or bitmap
+        String htmlContent = buildPrintHtml(entry);
+
+        // Create a print job
+        PrintHelper printHelper = new PrintHelper(getActivity());
+        printHelper.setScaleMode(PrintHelper.SCALE_MODE_FIT);
+
+        // Create a bitmap from the content (simplified - you may want to create a proper view)
+        // This is a simplified example - you might want to create a proper layout
+        TextView printView = new TextView(getActivity());
+        printView.setText(buildPrintText(entry));
+        printView.setTextSize(12);
+        printView.setPadding(50, 50, 50, 50);
+
+        // Print the view
+        printHelper.printBitmap("weighment_" + entry.getSerialNo(),
+                loadBitmapFromView(printView));
+    }
+
+    private String buildPrintHtml(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        return "<html><body style='font-family: monospace; padding: 20px;'>" +
+                "<h2 style='text-align: center;'>WEIGHMENT TICKET</h2>" +
+                "<hr>" +
+                "<p><b>Slip No:</b> " + entry.getSerialNo() + "</p>" +
+                "<p><b>Date/Time:</b> " + dateTime + "</p>" +
+                "<hr>" +
+                "<p><b>Vehicle No:</b> " + entry.getVehicleNo() + "</p>" +
+                "<p><b>Vehicle Type:</b> " + entry.getVehicleType() + "</p>" +
+                "<p><b>Material:</b> " + entry.getMaterial() + "</p>" +
+                "<p><b>Party:</b> " + entry.getParty() + "</p>" +
+                "<p><b>Charge:</b> " + entry.getCharge() + "</p>" +
+                "<hr>" +
+                "<p><b>Gross Weight:</b> " + entry.getGross() + " kg</p>" +
+                "<p><b>Tare Weight:</b> " + entry.getTare() + " kg</p>" +
+                (entry.getManualTare() != null && !entry.getManualTare().isEmpty() && !entry.getManualTare().equals("0") ?
+                        "<p><b>Manual Tare:</b> " + entry.getManualTare() + " kg</p>" : "") +
+                "<hr>" +
+                "<h3>NET WEIGHT: " + entry.getNet() + " kg</h3>" +
+                "<hr>" +
+                "</body></html>";
+    }
+
+    private String buildPrintText(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        return "================================\n" +
+                "     WEIGHMENT TICKET\n" +
+                "================================\n" +
+                "Slip No: " + entry.getSerialNo() + "\n" +
+                "Date/Time: " + dateTime + "\n" +
+                "--------------------------------\n" +
+                "Vehicle No: " + entry.getVehicleNo() + "\n" +
+                "Vehicle Type: " + entry.getVehicleType() + "\n" +
+                "Material: " + entry.getMaterial() + "\n" +
+                "Party: " + entry.getParty() + "\n" +
+                "Charge: " + entry.getCharge() + "\n" +
+                "--------------------------------\n" +
+                "Gross Weight: " + entry.getGross() + " kg\n" +
+                "Tare Weight: " + entry.getTare() + " kg\n" +
+                (entry.getManualTare() != null && !entry.getManualTare().isEmpty() && !entry.getManualTare().equals("0") ?
+                        "Manual Tare: " + entry.getManualTare() + " kg\n" : "") +
+                "--------------------------------\n" +
+                "NET WEIGHT: " + entry.getNet() + " kg\n" +
+                "================================";
+    }
+
+    private Bitmap loadBitmapFromView(View v) {
+        v.measure(View.MeasureSpec.makeMeasureSpec(500, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        v.layout(0, 0, v.getMeasuredWidth(), v.getMeasuredHeight());
+        Bitmap b = Bitmap.createBitmap(v.getMeasuredWidth(), v.getMeasuredHeight(),
+                Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        v.draw(c);
+        return b;
+    }
     /**
      * Save weighment entry to database
      */
