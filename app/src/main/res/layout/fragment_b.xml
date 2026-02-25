@@ -32,10 +32,7 @@
 
         </LinearLayout>
 
-        <!-- Search Section -->
-
-
-        <!-- Form Fields (same structure as AFragment) -->
+        <!-- Form Fields with Spinners -->
         <LinearLayout
             android:id="@+id/abc1"
             android:layout_width="match_parent"
@@ -57,8 +54,8 @@
                 android:layout_gravity="left|center"
                 android:gravity="left|center"
                 android:layout_weight="1"
-
                 android:text="Serial No."/>
+
             <EditText
                 android:id="@+id/searchSerialEditText"
                 android:layout_width="@dimen/_600dp"
@@ -66,11 +63,9 @@
                 android:background="@drawable/edittext_box"
                 android:hint="serial no"
                 android:textColor="#000000"
-
                 android:textColorHint="#888888"
                 android:layout_weight="1"
                 android:imeOptions="actionSearch"/>
-
 
             <EditText
                 android:id="@+id/serialEditText"
@@ -84,6 +79,7 @@
                 android:layout_weight="1"/>
         </LinearLayout>
 
+        <!-- Vehicle No with Spinner -->
         <LinearLayout
             android:id="@+id/abc9"
             android:layout_width="match_parent"
@@ -107,17 +103,26 @@
                 android:layout_weight="1"
                 android:text="Vehicle No."/>
 
-            <EditText
-                android:id="@+id/vehicleNoEditText"
+            <LinearLayout
                 android:layout_width="@dimen/_600dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/edittext_box"
-                android:hint="Vehicle no"
-                android:textColor="#000000"
-                android:textColorHint="#888888"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <AutoCompleteTextView
+                    android:id="@+id/vehicleNoSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/edittext_box"
+                    android:completionThreshold="1"
+                    android:hint="Select or type vehicle no"
+                    android:padding="8dp"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888" />
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- Vehicle Type with Spinner -->
         <LinearLayout
             android:id="@+id/abc2"
             android:layout_width="match_parent"
@@ -141,17 +146,26 @@
                 android:layout_weight="1"
                 android:text="Vehicle Type"/>
 
-            <EditText
-                android:id="@+id/vehicleEditText"
+            <LinearLayout
                 android:layout_width="@dimen/_600dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/edittext_box"
-                android:hint="vehicle type"
-                android:textColor="#000000"
-                android:textColorHint="#888888"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <AutoCompleteTextView
+                    android:id="@+id/vehicleTypeSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/edittext_box"
+                    android:completionThreshold="1"
+                    android:hint="Select or type vehicle type"
+                    android:padding="8dp"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888" />
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- Material with Spinner -->
         <LinearLayout
             android:id="@+id/abc3"
             android:layout_width="match_parent"
@@ -175,17 +189,26 @@
                 android:layout_weight="1"
                 android:text="Material"/>
 
-            <EditText
-                android:id="@+id/materialEditText"
+            <LinearLayout
                 android:layout_width="@dimen/_600dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/edittext_box"
-                android:hint="material"
-                android:textColor="#000000"
-                android:textColorHint="#888888"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <AutoCompleteTextView
+                    android:id="@+id/materialSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/edittext_box"
+                    android:completionThreshold="1"
+                    android:hint="Select or type material"
+                    android:padding="8dp"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888" />
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- Party with Spinner -->
         <LinearLayout
             android:id="@+id/abc4"
             android:layout_width="match_parent"
@@ -209,17 +232,26 @@
                 android:layout_weight="1"
                 android:text="Party"/>
 
-            <EditText
-                android:id="@+id/partyEditText"
+            <LinearLayout
                 android:layout_width="@dimen/_600dp"
                 android:layout_height="wrap_content"
-                android:background="@drawable/edittext_box"
-                android:hint="party"
-                android:textColor="#000000"
-                android:textColorHint="#888888"
-                android:layout_weight="1"/>
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <AutoCompleteTextView
+                    android:id="@+id/partySpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/edittext_box"
+                    android:completionThreshold="1"
+                    android:hint="Select or type party"
+                    android:padding="8dp"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888" />
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- Charge -->
         <LinearLayout
             android:id="@+id/abc5"
             android:layout_width="match_parent"
@@ -254,6 +286,8 @@
                 android:textColorHint="#888888"
                 android:layout_weight="1"/>
         </LinearLayout>
+
+        <!-- T and G Buttons -->
         <LinearLayout
             android:id="@+id/abc6"
             android:layout_width="match_parent"
@@ -261,7 +295,6 @@
             android:layout_marginTop="3dp"
             android:layout_gravity="center"
             android:weightSum="2"
-
             android:orientation="horizontal">
 
             <androidx.appcompat.widget.AppCompatButton
@@ -285,8 +318,9 @@
                 android:textColor="@color/black"
                 android:layout_marginStart="@dimen/small_padding"
                 android:padding="@dimen/small_padding"/>
-
         </LinearLayout>
+
+        <!-- Gross -->
         <LinearLayout
             android:id="@+id/abc7"
             android:layout_width="match_parent"
@@ -322,6 +356,7 @@
                 android:layout_weight="1"/>
         </LinearLayout>
 
+        <!-- Tare -->
         <LinearLayout
             android:id="@+id/abc8"
             android:layout_width="match_parent"
@@ -357,6 +392,7 @@
                 android:layout_weight="1"/>
         </LinearLayout>
 
+        <!-- Net Weight -->
         <LinearLayout
             android:id="@+id/abc12"
             android:layout_width="match_parent"
@@ -424,7 +460,7 @@
             <androidx.appcompat.widget.AppCompatButton
                 android:id="@+id/button4a"
                 style="@style/NormalButton"
-                android:text="Update"
+                android:text="Finalize"
                 android:backgroundTint="@null"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -443,7 +479,6 @@
                 android:layout_marginStart="@dimen/small_padding"
                 android:visibility="gone"
                 app:backgroundTint="@null"/>
-
         </LinearLayout>
 
     </LinearLayout>

@@ -14,6 +14,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,11 +25,18 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatButton;
 import androidx.fragment.app.Fragment;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class BFragment extends Fragment {
 
     private AppCompatButton button4a;
-    private EditText serialEditText, vehicleNoEditText, vehicleEditText, materialEditText,
-            partyEditText, chargeEditText, grossEditText, tareEditText, netWeightEditText;
+    private EditText serialEditText, chargeEditText, grossEditText, tareEditText, netWeightEditText;
+
+    // AutoCompleteTextViews for dropdowns
+    private AutoCompleteTextView vehicleNoSpinner, vehicleTypeSpinner,
+            materialSpinner, partySpinner;
+
     private TextView txtDisplayTwoView;
 
     private DatabaseHelper databaseHelper;
@@ -44,6 +54,12 @@ public class BFragment extends Fragment {
     // Store the current serial number being viewed
     private String currentSerialNo = "";
 
+    // Adapters for dropdowns
+    private ArrayAdapter<String> vehicleNoAdapter;
+    private ArrayAdapter<String> vehicleTypeAdapter;
+    private ArrayAdapter<String> materialAdapter;
+    private ArrayAdapter<String> partyAdapter;
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_b, container, false);
@@ -55,53 +71,37 @@ public class BFragment extends Fragment {
         // Initialize views
         initViews(view);
 
+        // Setup dropdown adapters
+        setupDropdownAdapters();
+
         // Setup listeners
         setupCalculationListeners();
         setupSearchFunctionality();
         setupGrossTareFunctionality();
         setupActionButtons();
         setupButtonFocusListeners();
-      //  setupRegularFieldNavigation();
         setupTGMButtons();
+
         disableGrossEditText();
         disableTareEditText();
         disableNetWeightEditText();
+
         return view;
     }
-    public void performGButtonActionClear() {
-        // Same logic as button G click
-        clearAllFields();
-    }
-    private void clearAllFields() {
-        vehicleNoEditText.setText("");
-        vehicleEditText.setText("");
-        materialEditText.setText("");
-        partyEditText.setText("");
-        chargeEditText.setText("");
-        grossEditText.setText("");
-        tareEditText.setText("");
 
-        netWeightEditText.setText("");
-
-
-
-
-        // Reset manual EditText to disabled state
-        disableGrossEditText();
-        disableTareEditText();
-        disableNetWeightEditText();
-
-    }
     private void initViews(View view) {
         // Search field
         searchSerialEditText = view.findViewById(R.id.searchSerialEditText);
 
         // Form fields
         serialEditText = view.findViewById(R.id.serialEditText);
-        vehicleNoEditText = view.findViewById(R.id.vehicleNoEditText);
-        vehicleEditText = view.findViewById(R.id.vehicleEditText);
-        materialEditText = view.findViewById(R.id.materialEditText);
-        partyEditText = view.findViewById(R.id.partyEditText);
+
+        // Initialize AutoCompleteTextViews
+        vehicleNoSpinner = view.findViewById(R.id.vehicleNoSpinner);
+        vehicleTypeSpinner = view.findViewById(R.id.vehicleTypeSpinner);
+        materialSpinner = view.findViewById(R.id.materialSpinner);
+        partySpinner = view.findViewById(R.id.partySpinner);
+
         chargeEditText = view.findViewById(R.id.chargeEditText);
         grossEditText = view.findViewById(R.id.grossEditText);
         tareEditText = view.findViewById(R.id.tareEditText);
@@ -129,21 +129,182 @@ public class BFragment extends Fragment {
         // Setup focus for buttons
         button4a.setFocusable(true);
         button4a.setFocusableInTouchMode(true);
-        //buttonT.setFocusable(true);
-       // buttonT.setFocusableInTouchMode(true);
-       // buttonG.setFocusable(true);
-       // buttonG.setFocusableInTouchMode(true);
-
-        // Set focus chain
-       // searchSerialEditText.setNextFocusDownId(R.id.buttonT);
-       // buttonT.setNextFocusDownId(R.id.buttonG);
-        //buttonG.setNextFocusDownId(R.id.vehicleNoEditText);
 
         // Set IME options
-       // searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         grossEditText.setImeOptions(EditorInfo.IME_ACTION_NEXT);
         tareEditText.setImeOptions(EditorInfo.IME_ACTION_DONE);
+    }
+
+    private void setupDropdownAdapters() {
+        // Vehicle Number dropdown
+        List<String> vehicleNumbers = databaseHelper.getUniqueVehicleNumbers();
+        vehicleNoAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, vehicleNumbers);
+        vehicleNoSpinner.setAdapter(vehicleNoAdapter);
+        vehicleNoSpinner.setThreshold(1);
+
+        // Vehicle Type dropdown
+        List<String> vehicleTypes = databaseHelper.getUniqueVehicleTypes();
+        vehicleTypeAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, vehicleTypes);
+        vehicleTypeSpinner.setAdapter(vehicleTypeAdapter);
+        vehicleTypeSpinner.setThreshold(1);
+
+        // Material dropdown
+        List<String> materials = databaseHelper.getUniqueMaterials();
+        materialAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, materials);
+        materialSpinner.setAdapter(materialAdapter);
+        materialSpinner.setThreshold(1);
+
+        // Party dropdown
+        List<String> parties = databaseHelper.getUniqueParties();
+        partyAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, parties);
+        partySpinner.setAdapter(partyAdapter);
+        partySpinner.setThreshold(1);
+
+        // Set item click listeners to automatically add new entries to master data
+        setupSpinnerItemClickListeners();
+    }
+
+    private void setupSpinnerItemClickListeners() {
+        // For Vehicle Number
+        vehicleNoSpinner.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String selected = (String) parent.getItemAtPosition(position);
+                if (!selected.equals("All") && !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_VEHICLE_NO, selected)) {
+                    databaseHelper.insertMasterData(DatabaseHelper.TYPE_VEHICLE_NO, selected);
+                }
+            }
+        });
+
+        // For Vehicle Type
+        vehicleTypeSpinner.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String selected = (String) parent.getItemAtPosition(position);
+                if (!selected.equals("All") && !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_VEHICLE_TYPE, selected)) {
+                    databaseHelper.insertMasterData(DatabaseHelper.TYPE_VEHICLE_TYPE, selected);
+                }
+            }
+        });
+
+        // For Material
+        materialSpinner.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String selected = (String) parent.getItemAtPosition(position);
+                if (!selected.equals("All") && !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_MATERIAL, selected)) {
+                    databaseHelper.insertMasterData(DatabaseHelper.TYPE_MATERIAL, selected);
+                }
+            }
+        });
+
+        // For Party
+        partySpinner.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                String selected = (String) parent.getItemAtPosition(position);
+                if (!selected.equals("All") && !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_PARTY, selected)) {
+                    databaseHelper.insertMasterData(DatabaseHelper.TYPE_PARTY, selected);
+                }
+            }
+        });
+
+        // Add focus change listeners to update dropdown data when field gains focus
+        vehicleNoSpinner.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus && !isEntryFinalized) {
+                    refreshVehicleNoAdapter();
+                }
+            }
+        });
+
+        vehicleTypeSpinner.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus && !isEntryFinalized) {
+                    refreshVehicleTypeAdapter();
+                }
+            }
+        });
+
+        materialSpinner.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus && !isEntryFinalized) {
+                    refreshMaterialAdapter();
+                }
+            }
+        });
+
+        partySpinner.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if (hasFocus && !isEntryFinalized) {
+                    refreshPartyAdapter();
+                }
+            }
+        });
+    }
+
+    // Methods to refresh adapters
+    private void refreshVehicleNoAdapter() {
+        List<String> vehicleNumbers = databaseHelper.getUniqueVehicleNumbers();
+        vehicleNoAdapter.clear();
+        vehicleNoAdapter.addAll(vehicleNumbers);
+        vehicleNoAdapter.notifyDataSetChanged();
+    }
+
+    private void refreshVehicleTypeAdapter() {
+        List<String> vehicleTypes = databaseHelper.getUniqueVehicleTypes();
+        vehicleTypeAdapter.clear();
+        vehicleTypeAdapter.addAll(vehicleTypes);
+        vehicleTypeAdapter.notifyDataSetChanged();
+    }
+
+    private void refreshMaterialAdapter() {
+        List<String> materials = databaseHelper.getUniqueMaterials();
+        materialAdapter.clear();
+        materialAdapter.addAll(materials);
+        materialAdapter.notifyDataSetChanged();
+    }
+
+    private void refreshPartyAdapter() {
+        List<String> parties = databaseHelper.getUniqueParties();
+        partyAdapter.clear();
+        partyAdapter.addAll(parties);
+        partyAdapter.notifyDataSetChanged();
+    }
+
+    private void refreshAllAdapters() {
+        refreshVehicleNoAdapter();
+        refreshVehicleTypeAdapter();
+        refreshMaterialAdapter();
+        refreshPartyAdapter();
+    }
+
+    public void performGButtonActionClear() {
+        clearAllFields();
+    }
+
+    private void clearAllFields() {
+        vehicleNoSpinner.setText("");
+        vehicleTypeSpinner.setText("");
+        materialSpinner.setText("");
+        partySpinner.setText("");
+        chargeEditText.setText("");
+        grossEditText.setText("");
+        tareEditText.setText("");
+        netWeightEditText.setText("");
+
+        disableGrossEditText();
+        disableTareEditText();
+        disableNetWeightEditText();
     }
 
     private void setFormFieldsEnabled(boolean enabled) {
@@ -151,37 +312,28 @@ public class BFragment extends Fragment {
         // If entry is finalized, fields should be disabled even if enabled=true is passed
         boolean finalEnabled = enabled && !isEntryFinalized;
 
-        vehicleNoEditText.setEnabled(finalEnabled);
-        vehicleEditText.setEnabled(finalEnabled);
-        materialEditText.setEnabled(finalEnabled);
-        partyEditText.setEnabled(finalEnabled);
+        vehicleNoSpinner.setEnabled(finalEnabled);
+        vehicleTypeSpinner.setEnabled(finalEnabled);
+        materialSpinner.setEnabled(finalEnabled);
+        partySpinner.setEnabled(finalEnabled);
         chargeEditText.setEnabled(finalEnabled);
-       // grossEditText.setEnabled(finalEnabled);
-       // tareEditText.setEnabled(finalEnabled);
-       // netWeightEditText.setEnabled(finalEnabled);
 
-        vehicleNoEditText.setFocusable(finalEnabled);
-        vehicleNoEditText.setFocusableInTouchMode(finalEnabled);
-        vehicleEditText.setFocusable(finalEnabled);
-        vehicleEditText.setFocusableInTouchMode(finalEnabled);
-        materialEditText.setFocusable(finalEnabled);
-        materialEditText.setFocusableInTouchMode(finalEnabled);
-        partyEditText.setFocusable(finalEnabled);
-        partyEditText.setFocusableInTouchMode(finalEnabled);
+        vehicleNoSpinner.setFocusable(finalEnabled);
+        vehicleNoSpinner.setFocusableInTouchMode(finalEnabled);
+        vehicleTypeSpinner.setFocusable(finalEnabled);
+        vehicleTypeSpinner.setFocusableInTouchMode(finalEnabled);
+        materialSpinner.setFocusable(finalEnabled);
+        materialSpinner.setFocusableInTouchMode(finalEnabled);
+        partySpinner.setFocusable(finalEnabled);
+        partySpinner.setFocusableInTouchMode(finalEnabled);
         chargeEditText.setFocusable(finalEnabled);
         chargeEditText.setFocusableInTouchMode(finalEnabled);
-        //grossEditText.setFocusable(finalEnabled);
-        //grossEditText.setFocusableInTouchMode(finalEnabled);
-       // tareEditText.setFocusable(finalEnabled);
-        //tareEditText.setFocusableInTouchMode(finalEnabled);
-       // netWeightEditText.setFocusable(finalEnabled);
-      //  netWeightEditText.setFocusableInTouchMode(finalEnabled);
 
         float alpha = finalEnabled ? 1.0f : 0.6f;
-        vehicleNoEditText.setAlpha(alpha);
-        vehicleEditText.setAlpha(alpha);
-        materialEditText.setAlpha(alpha);
-        partyEditText.setAlpha(alpha);
+        vehicleNoSpinner.setAlpha(alpha);
+        vehicleTypeSpinner.setAlpha(alpha);
+        materialSpinner.setAlpha(alpha);
+        partySpinner.setAlpha(alpha);
         chargeEditText.setAlpha(alpha);
         grossEditText.setAlpha(alpha);
         tareEditText.setAlpha(alpha);
@@ -242,111 +394,13 @@ public class BFragment extends Fragment {
 
         // Hardware key listener for physical Enter key
         searchSerialEditText.setOnKeyListener((v, keyCode, event) -> {
-           // if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                    Log.d("BFragment", "Physical Enter on search field");
-
-                    loadEntry();
-                    return true; // Consume the event
-                }
-          //  }
+            if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                Log.d("BFragment", "Physical Enter on search field");
+                loadEntry();
+                return true;
+            }
             return false;
         });
-    }
-
-    /**
-     * Setup gross and tare fields with Enter key functionality
-     */
-
-
-    /**
-     * Simple Enter key handler for EditText fields
-     */
-
-
-    /**
-     * Helper method to move to next field after gross/tare processing
-     */
-
-    /**
-     * Setup regular fields navigation
-     */
-    /**
-     * Setup regular fields navigation
-     */
-    /**
-     * Setup regular fields navigation - Now returns focus to search field
-     */
-    private void setupRegularFieldNavigation() {
-        EditText[] regularFields = {
-                searchSerialEditText,
-                vehicleNoEditText,
-                vehicleEditText,
-                materialEditText,
-                partyEditText,
-                chargeEditText
-        };
-
-        for (int i = 0; i < regularFields.length; i++) {
-            final int currentIndex = i;
-            EditText field = regularFields[i];
-
-            if (field == null) continue;
-
-            // Clear existing listeners
-            field.setOnEditorActionListener(null);
-            field.setOnKeyListener(null);
-
-            // Handle physical Enter key for navigation
-            field.setOnKeyListener((v, keyCode, event) -> {
-                if (event.getAction() == KeyEvent.ACTION_DOWN) {
-                    if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                        Log.d("BFragment", "Physical Enter on regular field " + currentIndex);
-
-                        if (field.isEnabled()) {
-                            navigateToNextField(regularFields, currentIndex);
-                        }
-                        return true; // Consume the event
-                    }
-                }
-                return false;
-            });
-
-            // Handle soft keyboard IME actions
-            field.setOnEditorActionListener((v, actionId, event) -> {
-                if (actionId == EditorInfo.IME_ACTION_NEXT) {
-                    if (field.isEnabled()) {
-                        navigateToNextField(regularFields, currentIndex);
-                    }
-                    return true;
-                }
-                return false;
-            });
-
-            field.setImeOptions(EditorInfo.IME_ACTION_NEXT);
-        }
-    }
-
-    /**
-     * Navigate to next enabled field - Returns to search after last field
-     */
-    private void navigateToNextField(EditText[] fields, int currentIndex) {
-        // First try to find next enabled field in the regular fields array
-        if (currentIndex < fields.length - 1) {
-            // Find next enabled field in the same group
-            for (int j = currentIndex + 1; j < fields.length; j++) {
-                if (fields[j].isEnabled()) {
-                    fields[j].requestFocus();
-                    return;
-                }
-            }
-        }
-
-        // If we've reached the end of regular fields, go to gross field
-        if (grossEditText != null && grossEditText.isEnabled()) {
-            grossEditText.requestFocus();
-            return;
-        }
     }
 
     /**
@@ -493,69 +547,48 @@ public class BFragment extends Fragment {
         });
     }
 
-    /**
-     * Navigate to next enabled field
-     */
-    /**
-     * Navigate to next enabled field
-     */
     private void enableGrossEditText() {
         grossEditText.setEnabled(true);
         grossEditText.setFocusable(true);
         grossEditText.setFocusableInTouchMode(true);
         grossEditText.setClickable(true);
-        grossEditText.setAlpha(1.0f); // Full opacity when enabled
+        grossEditText.setAlpha(1.0f);
         grossEditText.requestFocus();
 
-        // Toast.makeText(getActivity(), "Manual tare enabled", Toast.LENGTH_SHORT).show();
-
-        // Show keyboard
         InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.showSoftInput(grossEditText, InputMethodManager.SHOW_IMPLICIT);
     }
 
-    /**
-     * Disable manual EditText
-     */
     private void disableGrossEditText() {
         grossEditText.setEnabled(false);
         grossEditText.setFocusable(false);
         grossEditText.setFocusableInTouchMode(false);
         grossEditText.setClickable(false);
-        grossEditText.setAlpha(0.5f); // Dimmed when disabled
+        grossEditText.setAlpha(0.5f);
 
-        // Hide keyboard
         InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(grossEditText.getWindowToken(), 0);
-
-        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
     }
+
     private void disableTareEditText() {
         tareEditText.setEnabled(false);
         tareEditText.setFocusable(false);
         tareEditText.setFocusableInTouchMode(false);
         tareEditText.setClickable(false);
-        tareEditText.setAlpha(0.5f); // Dimmed when disabled
+        tareEditText.setAlpha(0.5f);
 
-        // Hide keyboard
         InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(tareEditText.getWindowToken(), 0);
-
-        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
     }
+
     private void disableNetWeightEditText() {
         netWeightEditText.setEnabled(false);
         netWeightEditText.setFocusable(false);
         netWeightEditText.setFocusableInTouchMode(false);
         netWeightEditText.setClickable(false);
-        netWeightEditText.setAlpha(0.5f); // Dimmed when disabled
-
-        // Hide keyboard
-        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(tareEditText.getWindowToken(), 0);
-
-        // Toast.makeText(getActivity(), "Manual tare disabled", Toast.LENGTH_SHORT).show();
+        netWeightEditText.setAlpha(0.5f);
     }
+
     private void loadEntry() {
         String searchSerial = searchSerialEditText.getText().toString().trim();
         Log.d("BFragment", "Loading entry: " + searchSerial);
@@ -590,15 +623,15 @@ public class BFragment extends Fragment {
 
             if (!isEntryFinalized) {
                 // Use postDelayed to ensure view is ready
-                materialEditText.postDelayed(new Runnable() {
+                materialSpinner.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        materialEditText.requestFocus();
+                        materialSpinner.requestFocus();
                         InputMethodManager keyboard = (InputMethodManager) getActivity()
                                 .getSystemService(Context.INPUT_METHOD_SERVICE);
-                        keyboard.showSoftInput(materialEditText, InputMethodManager.SHOW_IMPLICIT);
+                        keyboard.showSoftInput(materialSpinner, InputMethodManager.SHOW_IMPLICIT);
                     }
-                }, 200); // 200ms delay
+                }, 200);
             }
 
             if (isEntryFinalized) {
@@ -654,10 +687,10 @@ public class BFragment extends Fragment {
 
     private void populateFormWithEntry(WeighmentEntry entry) {
         serialEditText.setText(entry.getSerialNo());
-        vehicleNoEditText.setText(entry.getVehicleNo());
-        vehicleEditText.setText(entry.getVehicleType());
-        materialEditText.setText(entry.getMaterial());
-        partyEditText.setText(entry.getParty());
+        vehicleNoSpinner.setText(entry.getVehicleNo());
+        vehicleTypeSpinner.setText(entry.getVehicleType());
+        materialSpinner.setText(entry.getMaterial());
+        partySpinner.setText(entry.getParty());
         chargeEditText.setText(entry.getCharge());
     }
 
@@ -863,11 +896,9 @@ public class BFragment extends Fragment {
         calculateNetWeight();
     }
 
-
-
     public void finalizeWeighmentEntry() {
         String serialNo = serialEditText.getText().toString().trim();
-        String vehicleNo = vehicleNoEditText.getText().toString().trim();
+        String vehicleNo = vehicleNoSpinner.getText().toString().trim();
 
         if (serialNo.isEmpty()) {
             Toast.makeText(getActivity(), "Please load an entry first", Toast.LENGTH_SHORT).show();
@@ -876,18 +907,35 @@ public class BFragment extends Fragment {
         }
 
         if (vehicleNo.isEmpty()) {
-            vehicleNoEditText.setError("Vehicle number is required");
-            vehicleNoEditText.requestFocus();
+            vehicleNoSpinner.setError("Vehicle number is required");
+            vehicleNoSpinner.requestFocus();
             return;
         }
 
         WeighmentEntry entry = new WeighmentEntry();
         entry.setSerialNo(serialNo);
         entry.setVehicleNo(vehicleNo);
-        entry.setVehicleType(vehicleEditText.getText().toString().trim());
-        entry.setMaterial(materialEditText.getText().toString().trim());
-        entry.setParty(partyEditText.getText().toString().trim());
+        entry.setVehicleType(vehicleTypeSpinner.getText().toString().trim());
+        entry.setMaterial(materialSpinner.getText().toString().trim());
+        entry.setParty(partySpinner.getText().toString().trim());
         entry.setCharge(chargeEditText.getText().toString().trim());
+
+        // Add to master data if new values
+        if (!vehicleNo.isEmpty() && !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_VEHICLE_NO, vehicleNo)) {
+            databaseHelper.insertMasterData(DatabaseHelper.TYPE_VEHICLE_NO, vehicleNo);
+        }
+        if (!vehicleTypeSpinner.getText().toString().trim().isEmpty() &&
+                !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_VEHICLE_TYPE, vehicleTypeSpinner.getText().toString().trim())) {
+            databaseHelper.insertMasterData(DatabaseHelper.TYPE_VEHICLE_TYPE, vehicleTypeSpinner.getText().toString().trim());
+        }
+        if (!materialSpinner.getText().toString().trim().isEmpty() &&
+                !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_MATERIAL, materialSpinner.getText().toString().trim())) {
+            databaseHelper.insertMasterData(DatabaseHelper.TYPE_MATERIAL, materialSpinner.getText().toString().trim());
+        }
+        if (!partySpinner.getText().toString().trim().isEmpty() &&
+                !databaseHelper.isMasterDataExists(DatabaseHelper.TYPE_PARTY, partySpinner.getText().toString().trim())) {
+            databaseHelper.insertMasterData(DatabaseHelper.TYPE_PARTY, partySpinner.getText().toString().trim());
+        }
 
         String grossStr = grossEditText.getText().toString().trim();
         String tareStr = tareEditText.getText().toString().trim();
@@ -937,6 +985,9 @@ public class BFragment extends Fragment {
                 // Focus on search field for next operation
                 searchSerialEditText.requestFocus();
                 searchSerialEditText.selectAll();
+
+                // Refresh adapters
+                refreshAllAdapters();
             } else {
                 Toast.makeText(getActivity(), "Error finalizing entry", Toast.LENGTH_SHORT).show();
             }
@@ -944,7 +995,6 @@ public class BFragment extends Fragment {
 
         builder.setNegativeButton("No", (dialog, which) -> {
             dialog.dismiss();
-            // Keep the form editable
             Toast.makeText(getActivity(), "Entry not finalized", Toast.LENGTH_SHORT).show();
         });
 
@@ -1000,10 +1050,10 @@ public class BFragment extends Fragment {
 
     private void clearFormFields() {
         serialEditText.setText("");
-        vehicleNoEditText.setText("");
-        vehicleEditText.setText("");
-        materialEditText.setText("");
-        partyEditText.setText("");
+        vehicleNoSpinner.setText("");
+        vehicleTypeSpinner.setText("");
+        materialSpinner.setText("");
+        partySpinner.setText("");
         chargeEditText.setText("");
         grossEditText.setText("");
         tareEditText.setText("");
@@ -1050,5 +1100,6 @@ public class BFragment extends Fragment {
         // Reset finalized state when fragment resumes
         isEntryFinalized = false;
         setFormFieldsEnabled(false);
+        refreshAllAdapters();
     }
 }

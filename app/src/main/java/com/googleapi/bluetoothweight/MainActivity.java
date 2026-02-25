@@ -116,6 +116,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private AFragment aFragment;
     private BFragment bFragment;
     private CFragment cFragment; // Add CFragment
+    private DFragment dFragment; // Add CFragment
+    private EFragment eFragment; // Add CFragment
 
     // Key event handling flags
     private AtomicBoolean isProcessingKeyEvent = new AtomicBoolean(false);
@@ -141,7 +143,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     // Track current state
     private enum FragmentState {
-        NONE, FRAGMENT_A, FRAGMENT_B, FRAGMENT_C // Add FRAGMENT_C
+        NONE, FRAGMENT_A, FRAGMENT_B, FRAGMENT_C, FRAGMENT_D, FRAGMENT_E // Add FRAGMENT_C
     }
     private FragmentState currentFragmentState = FragmentState.NONE;
 
@@ -201,7 +203,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         // Initialize fragments
         aFragment = new AFragment();
         bFragment = new BFragment();
-        cFragment = new CFragment(); // Initialize CFragment
+        cFragment = new CFragment();
+        dFragment = new DFragment();
+        eFragment = new EFragment(); // Initialize eFragment
 
         // Initialize reconnect runnable
         initializeReconnectRunnable();
@@ -426,6 +430,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 case FRAGMENT_C:
                     colorHex = "#2196F3";
                     break;
+                case FRAGMENT_D:
+                    colorHex = "#FF5722"; // Orange color for DFragment
+                    break;
+                    case FRAGMENT_E:
+                    colorHex = "#FF5732"; // Orange color for DFragment
+                    break;
                 default:
                     colorHex = "#FFFFFF";
             }
@@ -436,7 +446,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     /**
      * Hide fragment and show counter
      */
-    private void hideFragmentAndShowCounter() {
+    void hideFragmentAndShowCounter() {
         if (visibleFragment != null) {
             getSupportFragmentManager().beginTransaction()
                     .hide(visibleFragment)
@@ -503,6 +513,47 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             hideFragmentAndShowCounter();
         } else {
             showFragmentAndHideCounter(button, fragment, state, colorHex);
+        }
+    }
+
+    /**
+     * Toggle DFragment (Delete dialog) with F3 key
+     */
+    private void toggleEFragment() {
+        if (currentFragmentState == FragmentState.FRAGMENT_E) {
+            // If DFragment is currently visible, hide it and show counter
+            hideFragmentAndShowCounter();
+            Toast.makeText(this, "Delete Dialog Closed", Toast.LENGTH_SHORT).show();
+        } else {
+            // Hide any currently visible fragment
+            if (visibleFragment != null && visibleFragment != eFragment) {
+                getSupportFragmentManager().beginTransaction()
+                        .hide(visibleFragment)
+                        .commitAllowingStateLoss();
+
+                if (selectedButton != null) {
+                    selectedButton.setSelected(false);
+                    selectedButton = null;
+                }
+            }
+
+            // Show DFragment
+            if (!eFragment.isAdded()) {
+                getSupportFragmentManager().beginTransaction()
+                        .add(R.id.fragment_container, eFragment, "FRAGMENT_E")
+                        .commitAllowingStateLoss();
+            } else {
+                getSupportFragmentManager().beginTransaction()
+                        .show(eFragment)
+                        .commitAllowingStateLoss();
+            }
+
+            visibleFragment = eFragment;
+            currentFragmentState = FragmentState.FRAGMENT_E;
+
+            updateUIBasedOnState();
+            txtCounter.setTextColor(Color.parseColor("#FF5722")); // Orange color for DFragment
+            Toast.makeText(this, "Delete Dialog Opened (F3)", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -583,20 +634,36 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
 
             if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
-                if (aFragment != null) {
-                    aFragment.performGButtonActionClear();
-                }
-                if (bFragment != null) {
-                    bFragment.performGButtonActionClear();
-                }
+                // First, check if drawer is open
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                     return true;
-                } else if (currentFragmentState != FragmentState.NONE) {
+                }
+                // If any fragment is active, hide it and show counter
+                else if (currentFragmentState != FragmentState.NONE) {
                     hideFragmentAndShowCounter();
+                    Toast.makeText(this, "Returned to Home", Toast.LENGTH_SHORT).show();
                     return true;
                 }
-                return true;
+                // Optional: If no fragment is active and you want to clear fields in fragments
+                else {
+                    // Clear any fragment data even if not visible (optional)
+                    if (aFragment != null && aFragment.isAdded()) {
+                        aFragment.performGButtonActionClear();
+                    }
+                    if (bFragment != null && bFragment.isAdded()) {
+                        bFragment.performGButtonActionClear();
+                    }
+                    if (dFragment != null && dFragment.isAdded()) {
+                        // Add clear method for DFragment if needed
+                        // dFragment.clearData();
+                    }
+                    if (eFragment != null && eFragment.isAdded()) {
+                        // Add clear method for EFragment if needed
+                        // eFragment.clearData();
+                    }
+                    return true;
+                }
             }
 
 
@@ -676,13 +743,30 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 toggleReportFragment();
                 return true;
             }
+            if (keyCode == KeyEvent.KEYCODE_F1) {
+                toggleDFragment();
+                    return true;
+
+            }
+
+            // Handle F3 key for Delete Dialog (DFragment)
+            if (keyCode == KeyEvent.KEYCODE_F3) {
+                toggleEFragment();
+                return true;
+            }
             // Handle M key for manual tare button (only if no EditText is focused)
-            if ((keyCode == KeyEvent.KEYCODE_M)) {
+            if ((keyCode == KeyEvent.KEYCODE_F4)) {
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performMButtonAction();
                     return true;
                 }
+                return true;
+            }
+
+            // ========== ADD F1 KEY HANDLER HERE ==========
+            if (keyCode == KeyEvent.KEYCODE_F2) {
+                openMasterDataDialog();
                 return true;
             }
 
@@ -696,13 +780,79 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
                 return true;
             }
+
+
         }
 
         return super.dispatchKeyEvent(event);
     }
+
+
+    /**
+     * Toggle DFragment (Search & Print fragment) with F1 key
+     */
+    private void toggleDFragment() {
+        if (currentFragmentState == FragmentState.FRAGMENT_D) {
+            // If DFragment is currently visible, hide it and show counter
+            hideFragmentAndShowCounter();
+            Toast.makeText(this, "Search & Print View Closed", Toast.LENGTH_SHORT).show();
+        } else {
+            // Hide any currently visible fragment
+            if (visibleFragment != null && visibleFragment != dFragment) {
+                getSupportFragmentManager().beginTransaction()
+                        .hide(visibleFragment)
+                        .commitAllowingStateLoss();
+
+                if (selectedButton != null) {
+                    selectedButton.setSelected(false);
+                    selectedButton = null;
+                }
+            }
+
+            // Show DFragment
+            if (!dFragment.isAdded()) {
+                getSupportFragmentManager().beginTransaction()
+                        .add(R.id.fragment_container, dFragment, "FRAGMENT_D")
+                        .commitAllowingStateLoss();
+            } else {
+                getSupportFragmentManager().beginTransaction()
+                        .show(dFragment)
+                        .commitAllowingStateLoss();
+
+                // Refresh data if needed
+                if (dFragment.isAdded()) {
+                    // You can add a refresh method in DFragment if needed
+                    // dFragment.refreshData();
+                }
+            }
+
+            visibleFragment = dFragment;
+            currentFragmentState = FragmentState.FRAGMENT_D;
+
+            updateUIBasedOnState();
+            txtCounter.setTextColor(Color.parseColor("#FF5722")); // Orange color for DFragment
+            Toast.makeText(this, "Search & Print View Opened (F1)", Toast.LENGTH_SHORT).show();
+        }
+    }
     // Add this method to setup focus change listeners for buttons
 
+    /**
+     * Open the Master Data Settings Dialog when F1 is pressed
+     */
+    private void openMasterDataDialog() {
+        // Check if any EditText has focus - if yes, don't open dialog
+        View currentFocus = getCurrentFocus();
+        if (currentFocus instanceof EditText) {
+            return;
+        }
 
+        // Create and show the master data dialog
+        MasterDataDialog dialog = new MasterDataDialog(this);
+        dialog.show();
+
+        // Optional: Show a toast to indicate dialog opened
+        Toast.makeText(this, "Master Data Settings (F1)", Toast.LENGTH_SHORT).show();
+    }
     /**
      * Helper method to find the next focusable view in a specific direction
      */

@@ -113,5 +113,10 @@
     <dimen name="drawer_width">280dp</dimen>
 
 
+        <!-- Existing dimens (keep what you already have) -->
+
+        <dimen name="normal_text_size">16sp</dimen>
+
+
 
 </resources>

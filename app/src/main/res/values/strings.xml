@@ -16,4 +16,5 @@
     <string name="save_print"><![CDATA[Save&Print]]></string>
     <string name="update_print"><![CDATA[Update&Print]]></string>
     <string name="search_update_entry">2nd Weighment</string>
+    <string name="print_weighment">Print Weighment</string>
 </resources>

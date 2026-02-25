@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0D6EBD"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/medium_padding">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="@dimen/medium_padding">
+
+            <TextView
+                android:id="@+id/headingName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Delete Entry"
+                android:textSize="@dimen/xlarge_text_size"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:gravity="center"/>
+
+        </LinearLayout>
+
+        <!-- Search Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#333333"
+            android:padding="@dimen/medium_padding"
+            android:layout_marginBottom="@dimen/medium_padding">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Search by Serial Number"
+                android:textColor="@color/white"
+                android:textSize="@dimen/large_text_size"
+                android:textStyle="bold"
+                android:layout_marginBottom="@dimen/small_padding"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/searchSerialEditText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/edittext_box"
+                    android:hint="Enter serial number"
+                    android:inputType="number"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888"
+                    android:padding="12dp"
+                    android:imeOptions="actionSearch"/>
+
+                <Button
+                    android:id="@+id/btnSearch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Search"
+                    android:layout_marginStart="@dimen/small_padding"
+                    android:backgroundTint="#2196F3"
+                    android:textColor="@color/white"
+                    android:paddingLeft="20dp"
+                    android:paddingRight="20dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Entry Details Section (Visible after search) -->
+        <LinearLayout
+            android:id="@+id/entryDetailsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#333333"
+            android:padding="@dimen/medium_padding"
+            android:layout_marginBottom="@dimen/medium_padding"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Entry Details"
+                android:textColor="@color/white"
+                android:textSize="@dimen/large_text_size"
+                android:textStyle="bold"
+                android:layout_marginBottom="@dimen/small_padding"/>
+
+            <TextView
+                android:id="@+id/txtSerialNo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtVehicleNo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtVehicleType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtMaterial"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtParty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtGross"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtTare"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtNet"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtFinalized"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/tiny_padding"/>
+
+            <TextView
+                android:id="@+id/txtTimestamp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#00FF00"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/small_padding"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="@dimen/small_padding">
+
+                <Button
+                    android:id="@+id/btnDeleteSingle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Delete This Entry"
+                    android:backgroundTint="#F44336"
+                    android:textColor="@color/white"
+                    android:layout_marginEnd="@dimen/tiny_padding"/>
+
+                <Button
+                    android:id="@+id/btnClear"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Clear"
+                    android:backgroundTint="#9E9E9E"
+                    android:textColor="@color/white"
+                    android:layout_marginStart="@dimen/tiny_padding"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Delete All Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#333333"
+            android:padding="@dimen/medium_padding"
+            android:layout_marginBottom="@dimen/medium_padding">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Delete All Entries"
+                android:textColor="@color/white"
+                android:textSize="@dimen/large_text_size"
+                android:textStyle="bold"
+                android:layout_marginBottom="@dimen/small_padding"/>
+
+            <TextView
+                android:id="@+id/txtTotalEntries"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Total entries: 0"
+                android:textColor="#FFC107"
+                android:textSize="@dimen/normal_text_size"
+                android:layout_marginBottom="@dimen/small_padding"/>
+
+            <Button
+                android:id="@+id/btnDeleteAll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="DELETE ALL ENTRIES"
+                android:backgroundTint="#F44336"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:padding="16dp"/>
+        </LinearLayout>
+
+        <!-- Close Button -->
+        <Button
+            android:id="@+id/btnClose"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Close"
+            android:backgroundTint="#2196F3"
+            android:textColor="@color/white"
+            android:padding="12dp"/>
+    </LinearLayout>
+</ScrollView>
