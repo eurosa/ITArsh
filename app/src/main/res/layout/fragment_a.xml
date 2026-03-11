@@ -456,6 +456,12 @@
             android:backgroundTint="@null"
             android:text="@string/save_print"
             app:backgroundTint="@null" />
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/selectPrinterButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Select USB Printer"
+            android:layout_margin="8dp"/>
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/button5a"

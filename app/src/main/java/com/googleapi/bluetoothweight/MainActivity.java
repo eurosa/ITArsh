@@ -7,6 +7,7 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.ActivityOptions;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -20,6 +21,8 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -63,6 +66,8 @@ import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -115,9 +120,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     // Fragment instances
     private AFragment aFragment;
     private BFragment bFragment;
-    private CFragment cFragment; // Add CFragment
-    private DFragment dFragment; // Add CFragment
-    private EFragment eFragment; // Add CFragment
+    private CFragment cFragment;
+    private DFragment dFragment;
+    private EFragment eFragment;
 
     // Key event handling flags
     private AtomicBoolean isProcessingKeyEvent = new AtomicBoolean(false);
@@ -141,9 +146,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private long lastConnectionAttemptTime = 0;
     private static final long MIN_CONNECTION_INTERVAL_MS = 15000;
 
+    // Printer management
+    private PrinterManager printerManager;
+    private PrinterMenuHelper printerMenuHelper;
+    private boolean isPrinterConnected = false;
+    private String currentPrinterName = "";
+    private UsbPrinterManager usbPrinterManager;
+    private UsbPermissionHelper permissionHelper;
+
     // Track current state
     private enum FragmentState {
-        NONE, FRAGMENT_A, FRAGMENT_B, FRAGMENT_C, FRAGMENT_D, FRAGMENT_E // Add FRAGMENT_C
+        NONE, FRAGMENT_A, FRAGMENT_B, FRAGMENT_C, FRAGMENT_D, FRAGMENT_E
     }
     private FragmentState currentFragmentState = FragmentState.NONE;
 
@@ -200,12 +213,40 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         autoConnectPrefs = getSharedPreferences("auto_connect_settings", MODE_PRIVATE);
         isAutoConnectEnabled.set(autoConnectPrefs.getBoolean(PREF_AUTO_CONNECT, true));
 
+        // Initialize PrinterManager
+        printerManager = PrinterManager.getInstance();
+        printerManager.init(this);
+
+        // Create PrinterMenuHelper
+        printerMenuHelper = new PrinterMenuHelper(this, new PrinterMenuHelper.PrinterDialogCallback() {
+            @Override
+            public void onPrinterSelected(UsbDevice printer) {
+                isPrinterConnected = true;
+                currentPrinterName = printerManager.getConnectedPrinterName();
+                invalidateOptionsMenu();
+                updatePrinterStatusInFragments();
+            }
+
+            @Override
+            public void onPrinterDisconnected() {
+                isPrinterConnected = false;
+                currentPrinterName = "";
+                invalidateOptionsMenu();
+                updatePrinterStatusInFragments();
+            }
+
+            @Override
+            public void onTestPrint() {
+                Toast.makeText(MainActivity.this, "Test print completed", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // Initialize fragments
         aFragment = new AFragment();
         bFragment = new BFragment();
         cFragment = new CFragment();
         dFragment = new DFragment();
-        eFragment = new EFragment(); // Initialize eFragment
+        eFragment = new EFragment();
 
         // Initialize reconnect runnable
         initializeReconnectRunnable();
@@ -243,6 +284,139 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         updateUIBasedOnState();
 
         setupClock();
+
+        // Add printer status listener
+        printerManager.addListener(new PrinterManager.PrinterConnectionAdapter() {
+            @Override
+            public void onPrinterConnected(String printerName) {
+                runOnUiThread(() -> {
+                    isPrinterConnected = true;
+                    currentPrinterName = printerName;
+                    invalidateOptionsMenu();
+                    updatePrinterStatusInFragments();
+                    Toast.makeText(MainActivity.this, "Printer connected: " + printerName, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onPrinterDisconnected() {
+                runOnUiThread(() -> {
+                    isPrinterConnected = false;
+                    currentPrinterName = "";
+                    invalidateOptionsMenu();
+                    updatePrinterStatusInFragments();
+                    Toast.makeText(MainActivity.this, "Printer disconnected", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+        // Initialize USB Printer Manager
+        usbPrinterManager = UsbPrinterManager.getInstance();
+        usbPrinterManager.init(this);
+        permissionHelper= new UsbPermissionHelper(this);
+        // Check permission after a short delay
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            checkUsbPermission();
+        }, 2000);
+        // Add printer listener to get updates
+        usbPrinterManager.addListener(new UsbPrinterManager.PrinterAdapter() {
+            @Override
+            public void onPrinterConnected(String printerName) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this,
+                            "✅ Printer connected: " + printerName, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onPrinterDisconnected() {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this,
+                            "❌ Printer disconnected", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onPrintSuccess() {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this,
+                            "✅ Print successful", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onPrintError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this,
+                            "❌ Print error: " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+
+    }
+    private void checkUsbPermission() {
+        UsbPermissionHelper permissionHelper = new UsbPermissionHelper(this);
+
+        if (!permissionHelper.hasPrinterPermission()) {
+            // Check if there are any USB devices
+            UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+            HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
+
+            if (deviceList.isEmpty()) {
+                // No devices connected
+                new AlertDialog.Builder(this)
+                        .setTitle("No USB Device")
+                        .setMessage(
+                                "No USB devices detected.\n\n" +
+                                        "Please connect your Canon printer via USB and ensure it's powered on."
+                        )
+                        .setPositiveButton("OK", null)
+                        .show();
+            } else {
+                // Devices connected but no permission
+                permissionHelper.showPermissionTroubleshooting();
+            }
+        }
+    }
+    /**
+     * Update printer status in all fragments
+     */
+    private void updatePrinterStatusInFragments() {
+        if (aFragment != null && aFragment.isAdded()) {
+            aFragment.updatePrinterStatus(isPrinterConnected, currentPrinterName);
+        }
+        if (bFragment != null && bFragment.isAdded()) {
+          //  bFragment.updatePrinterStatus(isPrinterConnected, currentPrinterName);
+        }
+        if (cFragment != null && cFragment.isAdded()) {
+          //  cFragment.updatePrinterStatus(isPrinterConnected, currentPrinterName);
+        }
+        if (dFragment != null && dFragment.isAdded()) {
+            dFragment.updatePrinterStatus(isPrinterConnected, currentPrinterName);
+        }
+        if (eFragment != null && eFragment.isAdded()) {
+           // eFragment.updatePrinterStatus(isPrinterConnected, currentPrinterName);
+        }
+    }
+
+    /**
+     * Get PrinterManager instance for fragments
+     */
+    public PrinterManager getPrinterManager() {
+        return printerManager;
+    }
+
+    /**
+     * Check if printer is connected
+     */
+    public boolean isPrinterConnected() {
+        return isPrinterConnected;
+    }
+
+    /**
+     * Get connected printer name
+     */
+    public String getConnectedPrinterName() {
+        return currentPrinterName;
     }
 
     /**
@@ -431,10 +605,10 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     colorHex = "#2196F3";
                     break;
                 case FRAGMENT_D:
-                    colorHex = "#FF5722"; // Orange color for DFragment
+                    colorHex = "#FF5722";
                     break;
-                    case FRAGMENT_E:
-                    colorHex = "#FF5732"; // Orange color for DFragment
+                case FRAGMENT_E:
+                    colorHex = "#FF5732";
                     break;
                 default:
                     colorHex = "#FFFFFF";
@@ -517,15 +691,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
     /**
-     * Toggle DFragment (Delete dialog) with F3 key
+     * Toggle EFragment (Delete dialog) with F3 key
      */
     private void toggleEFragment() {
         if (currentFragmentState == FragmentState.FRAGMENT_E) {
-            // If DFragment is currently visible, hide it and show counter
             hideFragmentAndShowCounter();
             Toast.makeText(this, "Delete Dialog Closed", Toast.LENGTH_SHORT).show();
         } else {
-            // Hide any currently visible fragment
             if (visibleFragment != null && visibleFragment != eFragment) {
                 getSupportFragmentManager().beginTransaction()
                         .hide(visibleFragment)
@@ -537,7 +709,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             }
 
-            // Show DFragment
             if (!eFragment.isAdded()) {
                 getSupportFragmentManager().beginTransaction()
                         .add(R.id.fragment_container, eFragment, "FRAGMENT_E")
@@ -552,7 +723,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             currentFragmentState = FragmentState.FRAGMENT_E;
 
             updateUIBasedOnState();
-            txtCounter.setTextColor(Color.parseColor("#FF5722")); // Orange color for DFragment
+            txtCounter.setTextColor(Color.parseColor("#FF5722"));
             Toast.makeText(this, "Delete Dialog Opened (F3)", Toast.LENGTH_SHORT).show();
         }
     }
@@ -634,54 +805,33 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
 
             if (keyCode == KeyEvent.KEYCODE_ESCAPE) {
-                // First, check if drawer is open
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START);
                     return true;
-                }
-                // If any fragment is active, hide it and show counter
-                else if (currentFragmentState != FragmentState.NONE) {
+                } else if (currentFragmentState != FragmentState.NONE) {
                     hideFragmentAndShowCounter();
                     Toast.makeText(this, "Returned to Home", Toast.LENGTH_SHORT).show();
                     return true;
-                }
-                // Optional: If no fragment is active and you want to clear fields in fragments
-                else {
-                    // Clear any fragment data even if not visible (optional)
+                } else {
                     if (aFragment != null && aFragment.isAdded()) {
                         aFragment.performGButtonActionClear();
                     }
                     if (bFragment != null && bFragment.isAdded()) {
                         bFragment.performGButtonActionClear();
                     }
-                    if (dFragment != null && dFragment.isAdded()) {
-                        // Add clear method for DFragment if needed
-                        // dFragment.clearData();
-                    }
-                    if (eFragment != null && eFragment.isAdded()) {
-                        // Add clear method for EFragment if needed
-                        // eFragment.clearData();
-                    }
                     return true;
                 }
             }
-
-
 
             View currentFocus = getCurrentFocus();
             boolean isEditTextFocused = currentFocus instanceof EditText;
             boolean isButtonFocused = currentFocus instanceof Button ||
                     currentFocus instanceof androidx.appcompat.widget.AppCompatButton;
 
-
             // Handle ENTER key for all focused views
             if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-
-                // Case 2: Button has focus
-                  if (isButtonFocused) {
-
-                    // Check if it's button4a (Save)
-                     if (currentFocus.getId() == R.id.button4a) {
+                if (isButtonFocused) {
+                    if (currentFocus.getId() == R.id.button4a) {
                         if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                             ((AFragment) visibleFragment).performPrintAction();
                             return true;
@@ -690,16 +840,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                             ((BFragment) visibleFragment).finalizeWeighmentEntry();
                             return true;
                         }
-                    }
-                    // Check if it's button5a (Print)
-                    else if (currentFocus.getId() == R.id.button5a) {
+                    } else if (currentFocus.getId() == R.id.button5a) {
                         if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                             ((AFragment) visibleFragment).performPrintAction();
                             return true;
                         }
                     }
-
-
                     return true;
                 }
                 return false;
@@ -712,16 +858,13 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     aFragment.performTButtonAction();
                     return true;
                 }
-
                 if (visibleFragment instanceof BFragment && visibleFragment.isVisible()) {
                     BFragment bFragment = (BFragment) visibleFragment;
                     bFragment.performTButtonAction();
                     return true;
                 }
-
                 return true;
             }
-
 
             // Handle G key for gross button (only if no EditText is focused)
             if ((keyCode == KeyEvent.KEYCODE_G) && !isEditTextFocused) {
@@ -735,27 +878,29 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                     bFragment.performGButtonAction();
                     return true;
                 }
-
                 return true;
             }
+
             // Handle F5 key for Report Fragment
             if (keyCode == KeyEvent.KEYCODE_F5) {
                 toggleReportFragment();
                 return true;
             }
+
+            // Handle F1 key for DFragment (Search & Print)
             if (keyCode == KeyEvent.KEYCODE_F1) {
                 toggleDFragment();
-                    return true;
-
+                return true;
             }
 
-            // Handle F3 key for Delete Dialog (DFragment)
+            // Handle F3 key for Delete Dialog (EFragment)
             if (keyCode == KeyEvent.KEYCODE_F3) {
                 toggleEFragment();
                 return true;
             }
-            // Handle M key for manual tare button (only if no EditText is focused)
-            if ((keyCode == KeyEvent.KEYCODE_F4)) {
+
+            // Handle F4 key for manual tare button
+            if (keyCode == KeyEvent.KEYCODE_F4) {
                 if (visibleFragment instanceof AFragment && visibleFragment.isVisible()) {
                     AFragment aFragment = (AFragment) visibleFragment;
                     aFragment.performMButtonAction();
@@ -764,7 +909,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 return true;
             }
 
-            // ========== ADD F1 KEY HANDLER HERE ==========
+            // Handle F2 key for Master Data Dialog
             if (keyCode == KeyEvent.KEYCODE_F2) {
                 openMasterDataDialog();
                 return true;
@@ -780,24 +925,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
                 return true;
             }
-
-
         }
 
         return super.dispatchKeyEvent(event);
     }
-
 
     /**
      * Toggle DFragment (Search & Print fragment) with F1 key
      */
     private void toggleDFragment() {
         if (currentFragmentState == FragmentState.FRAGMENT_D) {
-            // If DFragment is currently visible, hide it and show counter
             hideFragmentAndShowCounter();
             Toast.makeText(this, "Search & Print View Closed", Toast.LENGTH_SHORT).show();
         } else {
-            // Hide any currently visible fragment
             if (visibleFragment != null && visibleFragment != dFragment) {
                 getSupportFragmentManager().beginTransaction()
                         .hide(visibleFragment)
@@ -809,7 +949,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 }
             }
 
-            // Show DFragment
             if (!dFragment.isAdded()) {
                 getSupportFragmentManager().beginTransaction()
                         .add(R.id.fragment_container, dFragment, "FRAGMENT_D")
@@ -818,41 +957,31 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 getSupportFragmentManager().beginTransaction()
                         .show(dFragment)
                         .commitAllowingStateLoss();
-
-                // Refresh data if needed
-                if (dFragment.isAdded()) {
-                    // You can add a refresh method in DFragment if needed
-                    // dFragment.refreshData();
-                }
             }
 
             visibleFragment = dFragment;
             currentFragmentState = FragmentState.FRAGMENT_D;
 
             updateUIBasedOnState();
-            txtCounter.setTextColor(Color.parseColor("#FF5722")); // Orange color for DFragment
+            txtCounter.setTextColor(Color.parseColor("#FF5722"));
             Toast.makeText(this, "Search & Print View Opened (F1)", Toast.LENGTH_SHORT).show();
         }
     }
-    // Add this method to setup focus change listeners for buttons
 
     /**
-     * Open the Master Data Settings Dialog when F1 is pressed
+     * Open the Master Data Settings Dialog when F2 is pressed
      */
     private void openMasterDataDialog() {
-        // Check if any EditText has focus - if yes, don't open dialog
         View currentFocus = getCurrentFocus();
         if (currentFocus instanceof EditText) {
             return;
         }
 
-        // Create and show the master data dialog
         MasterDataDialog dialog = new MasterDataDialog(this);
         dialog.show();
-
-        // Optional: Show a toast to indicate dialog opened
-        Toast.makeText(this, "Master Data Settings (F1)", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Master Data Settings (F2)", Toast.LENGTH_SHORT).show();
     }
+
     /**
      * Helper method to find the next focusable view in a specific direction
      */
@@ -1259,6 +1388,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         invalidateOptionsMenu();
 
         String message = newState ? "Auto-connect enabled" : "Auto-connect disabled";
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
         if (newState && !isConnected.get()) {
             cleanupConnection();
@@ -1310,19 +1440,104 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_device_list, menu);
 
+        // Add printer menu
+        if (printerMenuHelper != null) {
+            printerMenuHelper.createPrinterMenu(menu);
+        }
+
+
+        // Add a debug test print menu item
+        MenuItem testPrintItem = menu.add(0, 9999, 200, "🔧 Test Printer");
+        testPrintItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
         MenuItem autoConnectItem = menu.findItem(R.id.action_toggle_auto_connect);
         if (autoConnectItem != null) {
             autoConnectItem.setTitle(isAutoConnectEnabled.get() ?
                     "Disable Auto-Connect" : "Enable Auto-Connect");
         }
+        menu.add(0, 1001, 0, "🔌 USB Status")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
+        menu.add(0, 1002, 0, "🔄 Retry Connection")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        menu.add(0, 1003, 0, "🔧 Printer Diagnostic")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
+        menu.add(0, 1004, 0, "📄 Test Print")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
+        menu.add(0, 1005, 0, "🔑 USB Permission Help")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        menu.add(0, 1006, 0, "🖨️ Print Ticket (Android)")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+
+        menu.add(0, 1007, 0, "🔍 Show Printers")
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
         return true;
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        // Update printer menu items
+        if (printerMenuHelper != null) {
+            printerMenuHelper.updateMenuItems(menu);
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle printer menu items first
+        if (printerMenuHelper != null && printerMenuHelper.handlePrinterMenuItem(item)) {
+            return true;
+        }
+        PrinterHelper helper = new PrinterHelper(this);
+        int id = item.getItemId();
+        switch (item.getItemId()) {
+            case 1001:
+                helper.checkUsbStatus();
+                return true;
+            case 1002:
+                // Retry connection
+                List<UsbDevice> printers = usbPrinterManager.getAvailablePrinters();
+                if (!printers.isEmpty()) {
+                    usbPrinterManager.connectToPrinter(printers.get(0));
+                } else {
+                    Toast.makeText(this, "No printers found", Toast.LENGTH_SHORT).show();
+                }
+                return true;
+            case 1003:
+                //helper.runPrinterDiagnostic();
+                return true;
+            case 1004:
+                // Test print
+                helper.printTicket("TEST123", "1000", "500", "500");
+                return true;
+            case 1005:
+                permissionHelper.showPermissionTroubleshooting();
+                return true;
+            case 1006:
+                PrintHelper helper1 = new PrintHelper(this);
+                helper1.showAvailablePrinters();
+                return true;
+        }
+
+        if (item.getItemId() == 1001) {
+
+            helper.checkUsbStatus();
+            return true;
+        } else if (item.getItemId() == 1002) {
+            // Retry connection with last device
+            if (usbPrinterManager != null) {
+                List<UsbDevice> printers = usbPrinterManager.getAvailablePrinters();
+                if (!printers.isEmpty()) {
+                    usbPrinterManager.connectToPrinter(printers.get(0));
+                } else {
+                    Toast.makeText(this, "No printers found", Toast.LENGTH_SHORT).show();
+                }
+            }
+            return true;
+        }
         if (id == R.id.action_disconnect) {
             executeInBackground(() -> {
                 bluetoothManager.disconnect();
@@ -1340,6 +1555,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             return true;
         } else if (id == R.id.action_report) {
             toggleReportFragment();
+            return true;
+        }
+
+        if (item.getItemId() == 9999) {
+            checkPrinterConnection();
+            testPrinterDirectly();
             return true;
         }
 
@@ -1369,7 +1590,23 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         }
         startPendingActivity();
     }
+    private void checkPrinterConnection() {
+        if (printerManager == null) return;
 
+        boolean connected = printerManager.isPrinterConnected();
+        String printerName = printerManager.getConnectedPrinterName();
+        UsbPrinterHelper.PrinterType type = printerManager.getCurrentPrinterType();
+
+        Log.d("PrinterCheck", "Printer connected: " + connected);
+        Log.d("PrinterCheck", "Printer name: " + printerName);
+        Log.d("PrinterCheck", "Printer type: " + type);
+
+        Toast.makeText(this,
+                "Printer: " + (connected ? "✅ Connected" : "❌ Disconnected") +
+                        "\nName: " + printerName +
+                        "\nType: " + type,
+                Toast.LENGTH_LONG).show();
+    }
     private void startPendingActivity() {
         if (pendingScanIntent != null && isScanPending) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -1386,7 +1623,73 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             isScanPending = false;
         }
     }
+    public void testPrinterDirectly() {
+        if (!isPrinterConnected()) {
+            Toast.makeText(this, "Printer not connected", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
+        Log.d("PrinterTest", "Testing printer directly...");
+
+        // Create a simple test print
+        String testText = "\n\n";
+        testText += "================================\n";
+        testText += "     PRINTER TEST\n";
+        testText += "================================\n";
+        testText += "Date: " + new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(new Date()) + "\n";
+        testText += "Printer: " + currentPrinterName + "\n";
+        testText += "Type: " + printerManager.getCurrentPrinterType() + "\n";
+        testText += "================================\n";
+        testText += "This is a test print to verify\n";
+        testText += "the USB printer connection.\n";
+        testText += "================================\n\n\n\f";
+
+        // Add listener
+        printerManager.addListener(new PrinterManager.PrinterConnectionAdapter() {
+            @Override
+            public void onPrintSuccess() {
+                runOnUiThread(() -> {
+                    printerManager.removeListener(this);
+                    Toast.makeText(MainActivity.this, "✅ Test print successful", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onPrintError(String error) {
+                runOnUiThread(() -> {
+                    printerManager.removeListener(this);
+                    Toast.makeText(MainActivity.this, "❌ Test print failed: " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @Override
+            public void onDebugInfo(String info) {
+                Log.d("PrinterTest", "Debug: " + info);
+            }
+        });
+
+        // Try all print methods
+        boolean printed = printerManager.autoDetectAndPrint(testText);
+        Log.d("PrinterTest", "autoDetectAndPrint result: " + printed);
+
+        if (!printed) {
+            printed = printerManager.printText(testText);
+            Log.d("PrinterTest", "printText result: " + printed);
+        }
+
+        if (!printed) {
+            printed = printerManager.printPlainText(testText);
+            Log.d("PrinterTest", "printPlainText result: " + printed);
+        }
+
+        if (!printed) {
+            Log.e("PrinterTest", "All print methods failed");
+            // Remove listener
+            if (printerManager.listeners.size() > 0) {
+                printerManager.removeListener(printerManager.listeners.get(printerManager.listeners.size() - 1));
+            }
+        }
+    }
     private void pairedDevicesList() {
         executeInBackground(() -> {
             if (myBluetooth == null) {
@@ -1545,6 +1848,27 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             registerReceiver(bluetoothStatusReceiver, filter);
         }
 
+        // Check for USB devices already connected
+        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
+
+        for (UsbDevice device : deviceList.values()) {
+            if (isPrinterDevice(device)) {
+                if (!usbManager.hasPermission(device)) {
+                    // Request permission
+                    PendingIntent permissionIntent = PendingIntent.getBroadcast(this, 0,
+                            new Intent("com.googleapi.bluetoothweight.USB_PERMISSION"),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    usbManager.requestPermission(device, permissionIntent);
+                }
+            }
+        }
+
+        // Register printer receiver
+        if (printerManager != null) {
+            printerManager.registerReceiver();
+        }
+
         Log.d("MainActivity", "Broadcast receiver registered successfully");
 
         if (!isBluetoothConnected() && isAutoConnectEnabled.get()) {
@@ -1553,7 +1877,18 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }, 2000);
         }
     }
+    private boolean isPrinterDevice(UsbDevice device) {
+        // Check if it's a printer (simplified check)
+        if (device.getDeviceClass() == 7) return true; // USB_CLASS_PRINTER
 
+        // Check vendor IDs
+        int[] printerVendors = {1046, 1208, 1193, 1008, 1118, 1305};
+        for (int vendor : printerVendors) {
+            if (device.getVendorId() == vendor) return true;
+        }
+
+        return false;
+    }
     @Override
     protected void onPause() {
         super.onPause();
@@ -1563,6 +1898,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             Log.d("MainActivity", "Broadcast receiver unregistered");
         } catch (IllegalArgumentException e) {
             Log.w("MainActivity", "Receiver was not registered");
+        }
+
+        // Unregister printer receiver
+        if (printerManager != null) {
+            printerManager.unregisterReceiver();
         }
     }
 
@@ -1594,6 +1934,12 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         if (bluetoothManager != null) {
             bluetoothManager.release();
+        }
+
+        // Disconnect and unregister printer
+        if (printerManager != null) {
+            printerManager.disconnectPrinter();
+            printerManager.unregisterReceiver();
         }
     }
 }

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Canon -->
+    <usb-device vendor-id="1193" />
+
+    <!-- Epson -->
+    <usb-device vendor-id="1208" />
+
+    <!-- HP -->
+    <usb-device vendor-id="1008" />
+
+    <!-- Brother -->
+    <usb-device vendor-id="1273" />
+
+    <!-- Star Micronics -->
+    <usb-device vendor-id="1305" />
+
+    <!-- Zebra -->
+    <usb-device vendor-id="1393" />
+
+    <!-- Bixolon -->
+    <usb-device vendor-id="1659" />
+
+    <!-- Dymo -->
+    <usb-device vendor-id="2338" />
+
+    <!-- Oki -->
+    <usb-device vendor-id="1472" />
+
+    <!-- Generic Printer Class (any printer) -->
+    <usb-device class="7" />
+</resources>

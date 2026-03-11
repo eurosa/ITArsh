@@ -479,6 +479,12 @@
                 android:layout_marginStart="@dimen/small_padding"
                 android:visibility="gone"
                 app:backgroundTint="@null"/>
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/selectPrinterButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select USB Printer"
+                android:layout_margin="8dp"/>
         </LinearLayout>
 
     </LinearLayout>

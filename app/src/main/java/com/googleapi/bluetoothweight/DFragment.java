@@ -1,9 +1,14 @@
 package com.googleapi.bluetoothweight;
 
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -16,6 +21,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,16 +29,25 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatButton;
 import androidx.fragment.app.Fragment;
+import androidx.print.PrintHelper;
 
+import com.googleapi.bluetoothweight.nokoprint.NokoPrintDirectPrinter;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DFragment extends Fragment {
 
-    private AppCompatButton button4a, button5a; // Added button5a for Print
+    private AppCompatButton button4a, button5a;
     private EditText serialEditText, chargeEditText, grossEditText, tareEditText, netWeightEditText;
+    private Button selectPrinterButton;
+    private boolean useUsbPrinting = false;
 
     // AutoCompleteTextViews for dropdowns
     private AutoCompleteTextView vehicleNoSpinner, vehicleTypeSpinner,
@@ -93,6 +108,10 @@ public class DFragment extends Fragment {
         // Search field
         searchSerialEditText = view.findViewById(R.id.searchSerialEditText);
 
+        // Printer selection button
+        selectPrinterButton = view.findViewById(R.id.selectPrinterButton);
+
+        selectPrinterButton.setVisibility(View.GONE);
         // Form fields
         serialEditText = view.findViewById(R.id.serialEditText);
 
@@ -134,6 +153,28 @@ public class DFragment extends Fragment {
 
         // Set IME options
         searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+
+        // Setup printer button based on MainActivity's printer status
+        if (mainActivity != null) {
+            updatePrinterStatus(mainActivity.isPrinterConnected(), mainActivity.getConnectedPrinterName());
+        }
+    }
+
+    /**
+     * Update printer status from MainActivity
+     */
+    public void updatePrinterStatus(boolean connected, String printerName) {
+        this.useUsbPrinting = connected;
+
+        if (selectPrinterButton != null) {
+            if (connected) {
+                selectPrinterButton.setText("Printer: " + printerName);
+                selectPrinterButton.setEnabled(false);
+            } else {
+                selectPrinterButton.setText("Select USB Printer");
+                selectPrinterButton.setEnabled(true);
+            }
+        }
     }
 
     /**
@@ -298,13 +339,15 @@ public class DFragment extends Fragment {
     private void setupActionButtons() {
         // Print button click listener
         button5a.setOnClickListener(v -> {
-            printCurrentEntry();
+           // printCurrentEntry();
+            printWeighmentEntry();
         });
 
         // Handle Enter key on Print button
         button5a.setOnKeyListener((v, keyCode, event) -> {
             if (keyCode == KeyEvent.KEYCODE_ENTER && event.getAction() == KeyEvent.ACTION_DOWN) {
-                printCurrentEntry();
+               // printCurrentEntry();
+                printWeighmentEntry();
                 return true;
             }
             return false;
@@ -328,27 +371,395 @@ public class DFragment extends Fragment {
         }
 
         // Build print content
-        StringBuilder printContent = new StringBuilder();
-        printContent.append("=== WEIGHMENT ENTRY #").append(entry.getSerialNo()).append(" ===\n\n");
-        printContent.append("Vehicle No: ").append(entry.getVehicleNo()).append("\n");
-        printContent.append("Vehicle Type: ").append(entry.getVehicleType()).append("\n");
-        printContent.append("Material: ").append(entry.getMaterial()).append("\n");
-        printContent.append("Party: ").append(entry.getParty()).append("\n");
-        printContent.append("Charge: ").append(entry.getCharge()).append("\n");
-        printContent.append("Gross Weight: ").append(entry.getGross()).append(" kg\n");
-        printContent.append("Tare Weight: ").append(entry.getTare()).append(" kg\n");
-        if (entry.getManualTare() != null && !entry.getManualTare().isEmpty() && !entry.getManualTare().equals("0")) {
-            printContent.append("Manual Tare: ").append(entry.getManualTare()).append(" kg\n");
+        String printContent = buildPrintText(entry);
+
+        // Use shared printer manager from MainActivity
+        if (mainActivity != null && mainActivity.isPrinterConnected()) {
+            PrinterManager printerManager = mainActivity.getPrinterManager();
+
+            printerManager.addListener(new PrinterManager.PrinterConnectionAdapter() {
+                @Override
+                public void onPrintSuccess() {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            printerManager.removeListener(this);
+                            Toast.makeText(getActivity(), "Print successful", Toast.LENGTH_SHORT).show();
+
+                            if (txtDisplayTwoView != null) {
+                                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                                txtDisplayTwoView.setText("PRINTED: " + entry.getSerialNo() +
+                                        " | Net: " + entry.getNet() + " KG at " + sdf.format(new Date()));
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onPrintError(String error) {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            printerManager.removeListener(this);
+                            Toast.makeText(getActivity(), "Print error: " + error, Toast.LENGTH_LONG).show();
+                            showPrintPreviewDialog(printContent, entry);
+                        });
+                    }
+                }
+            });
+
+            boolean printed = printerManager.autoDetectAndPrint(printContent);
+            if (!printed) {
+                printed = printerManager.printText(printContent);
+            }
+            if (!printed) {
+                printed = printerManager.printPlainText(printContent);
+            }
+            if (!printed) {
+                printerManager.removeListener(printerManager.listeners.get(printerManager.listeners.size() - 1));
+                showPrintPreviewDialog(printContent, entry);
+            }
+        } else {
+            showPrintPreviewDialog(printContent, entry);
         }
-        printContent.append("Net Weight: ").append(entry.getNet()).append(" kg\n");
-
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-        printContent.append("Date/Time: ").append(sdf.format(new Date())).append("\n");
-        printContent.append("==========================");
-
-        // Show print preview dialog
-        showPrintPreviewDialog(printContent.toString(), entry);
     }
+
+    private void printWeighmentEntry() {
+        // Get values from fields
+        String serialNo = serialEditText.getText().toString().trim();
+        String vehicleNo = vehicleNoSpinner.getText().toString().trim();
+        String vehicleType = vehicleTypeSpinner.getText().toString().trim();
+        String material = materialSpinner.getText().toString().trim();
+        String party = partySpinner.getText().toString().trim();
+        String charge = chargeEditText.getText().toString().trim();
+        String gross = grossEditText.getText().toString().trim();
+        String tare = tareEditText.getText().toString().trim();
+
+        // Validate serial number
+        if (serialNo.isEmpty()) {
+            Toast.makeText(getActivity(), "Serial number is required", Toast.LENGTH_SHORT).show();
+            serialEditText.requestFocus();
+            return;
+        }
+
+        // Validate vehicle number
+        if (vehicleNo.isEmpty()) {
+            vehicleNoSpinner.setError("Vehicle number is required");
+            vehicleNoSpinner.requestFocus();
+            return;
+        }
+
+        // Create entry object
+        WeighmentEntry entry = new WeighmentEntry();
+        entry.setSerialNo(serialNo);
+        entry.setVehicleNo(vehicleNo);
+        entry.setVehicleType(vehicleType);
+        entry.setMaterial(material);
+        entry.setParty(party);
+        entry.setCharge(charge);
+        entry.setGross(gross);
+        entry.setTare(tare);
+
+        entry.calculateNet();
+
+        // Show print options dialog
+        showPrintOptionsDialog(entry);
+    }
+
+    private void showPrintOptionsDialog(WeighmentEntry entry) {
+        String[] options = {
+                "PCL Print (HP LaserJet)",      // 0 - New PCL option
+                "Android Print Framework",      // 1 - Your existing method
+                "USB Direct Print",             // 2
+                "Bluetooth Print",              // 3
+                "NokoPrint App",                // 4
+                "Auto Detect Best Method"       // 5
+        };
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Select Print Method")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // PCL Print
+                            printWithPCL(entry);
+                            break;
+                        case 1: // Android Print Framework
+                            printUsingAndroidPrintFramework(entry);
+                            break;
+                        case 2: // USB Direct Print
+                            printWithUSB(entry);
+                            break;
+                        case 3: // Bluetooth Print
+                            printWithBluetooth(entry);
+                            break;
+                        case 4: // NokoPrint App
+                            printWithNokoPrint(entry);
+                            break;
+                        case 5: // Auto Detect
+                            autoDetectAndPrint(entry);
+                            break;
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void printWithPCL(WeighmentEntry entry) {
+        if (mainActivity == null || !mainActivity.isPrinterConnected()) {
+            Toast.makeText(getActivity(), "Printer not connected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ProgressDialog progressDialog = new ProgressDialog(getActivity());
+        progressDialog.setMessage("Printing with PCL...\nPlease wait");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        // Build PCL formatted ticket
+        String pclContent = buildPCLTicket(entry);
+
+        PrinterManager printerManager = mainActivity.getPrinterManager();
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            boolean result = false;
+            if (printerManager.usbPrinterHelper != null) {
+                result = printerManager.usbPrinterHelper.printPCL(pclContent);
+            }
+
+            final boolean finalResult = result;
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    if (finalResult) {
+                        Toast.makeText(getActivity(), "✅ PCL Print Successful", Toast.LENGTH_LONG).show();
+
+                        refreshAllAdapters();
+
+                    } else {
+                        // Fallback to Android print if PCL fails
+                        Toast.makeText(getActivity(), "PCL failed, trying Android print...", Toast.LENGTH_SHORT).show();
+                        printUsingAndroidPrintFramework(entry);
+                    }
+                });
+            }
+        });
+        executor.shutdown();
+    }
+    /**
+     * Build PCL formatted ticket
+     */
+    private String buildPCLTicket(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        String grossStr = entry.getGross().isEmpty() ? "0" : entry.getGross();
+        String tareStr = entry.getTare().isEmpty() ? "0" : entry.getTare();
+        String manualTareStr = entry.getManualTare().isEmpty() ? "0" : entry.getManualTare();
+        String netStr = entry.getNet().isEmpty() ? "0" : entry.getNet();
+
+        StringBuilder pcl = new StringBuilder();
+
+        // PCL commands
+        pcl.append("\u001BE");                    // Reset printer
+        pcl.append("\u001B&l1O");                  // Portrait orientation
+        pcl.append("\u001B(s10H");                  // 10 pitch
+        pcl.append("\u001B(s1Q");                   // Quality
+        pcl.append("\u001B&l6D");                   // Vertical motion index
+        pcl.append("\r\n\r\n");
+
+        // Header
+        pcl.append("\u001B(s3B");                   // Bold on
+        pcl.append("                WEIGHMENT TICKET\r\n");
+        pcl.append("\u001B(s0B");                   // Bold off
+        pcl.append("\r\n");
+
+        // Company details
+        pcl.append("========================================\r\n");
+        pcl.append("MY WEIGHBRIDGE COMPANY\r\n");
+        pcl.append("123 Industrial Area, City - 123456\r\n");
+        pcl.append("Phone: +91 9876543210\r\n");
+        pcl.append("========================================\r\n");
+        pcl.append("\r\n");
+
+        // Ticket details
+        pcl.append(String.format("Ticket #: %-15s Date: %s\r\n", entry.getSerialNo(), dateTime));
+        pcl.append("----------------------------------------\r\n");
+
+        // Vehicle details
+        pcl.append("\u001B(s3B");                   // Bold on
+        pcl.append("VEHICLE DETAILS:\r\n");
+        pcl.append("\u001B(s0B");                   // Bold off
+        pcl.append(String.format("Vehicle No: %-20s Type: %s\r\n",
+                entry.getVehicleNo(), entry.getVehicleType()));
+        pcl.append(String.format("Material: %-20s Party: %s\r\n",
+                entry.getMaterial(), entry.getParty()));
+        pcl.append(String.format("Charge: %s\r\n", entry.getCharge()));
+        pcl.append("----------------------------------------\r\n");
+
+        // Weight details
+        pcl.append("\u001B(s3B");                   // Bold on
+        pcl.append("WEIGHT DETAILS:\r\n");
+        pcl.append("\u001B(s0B");                   // Bold off
+        pcl.append("\r\n");
+        pcl.append(String.format("  Gross Weight (kg)  : %10s\r\n", grossStr));
+        pcl.append(String.format("  Tare Weight (kg)    : %10s\r\n", tareStr));
+        if (!manualTareStr.equals("0")) {
+            pcl.append(String.format("  Manual Tare (kg)    : %10s\r\n", manualTareStr));
+        }
+        pcl.append("  " + repeat("-", 40) + "\r\n");
+        pcl.append("\u001B(s3B");                   // Bold on
+        pcl.append(String.format("  NET WEIGHT (kg)     : %10s\r\n", netStr));
+        pcl.append("\u001B(s0B");                   // Bold off
+        pcl.append("  " + repeat("-", 40) + "\r\n");
+        pcl.append("\r\n");
+
+        // Signature area
+        pcl.append("----------------------------------------\r\n");
+        // pcl.append(String.format("Operator: %-20s\r\n", getOperatorName()));
+        pcl.append("\r\n");
+        pcl.append("Signature: __________________    Date: ___________\r\n");
+        pcl.append("\r\n");
+
+        // Footer
+        pcl.append("\u001B(s3B");                   // Bold on
+        pcl.append("           ***** THANK YOU *****\r\n");
+        pcl.append("\u001B(s0B");                   // Bold off
+        pcl.append("     *** This is computer generated ***\r\n");
+        pcl.append("     *** No signature required ***\r\n");
+        pcl.append("\r\n");
+        pcl.append("\r\n");
+
+        // Form feed
+        pcl.append("\u001B&l0H");                   // Form feed
+
+        return pcl.toString();
+    }
+    /**
+     * Helper method to repeat strings
+     */
+    private String repeat(String str, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(str);
+        }
+        return sb.toString();
+    }
+    /**
+     * Show retry dialog when print fails
+     */
+    private void showRetryDialog(WeighmentEntry entry, String error) {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Print Failed")
+                .setMessage(error + "\n\nWould you like to try another method?")
+                .setPositiveButton("Try PCL", (d, w) -> printWithPCL(entry))
+                .setNeutralButton("Try Android Print", (d, w) -> printUsingAndroidPrintFramework(entry))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /**
+     * Print with USB Direct
+     */
+    private void printWithUSB(WeighmentEntry entry) {
+        if (mainActivity == null || !mainActivity.isPrinterConnected()) {
+            Toast.makeText(getActivity(), "Printer not connected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        ProgressDialog progressDialog = new ProgressDialog(getActivity());
+        progressDialog.setMessage("USB Direct Print...\nPlease wait");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+
+        String textContent = buildPrintText(entry);
+
+        PrinterManager printerManager = mainActivity.getPrinterManager();
+        PrinterManager.PrinterConnectionListener listener = new PrinterManager.PrinterConnectionAdapter() {
+            @Override
+            public void onPrintSuccess() {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        Toast.makeText(getActivity(), "✅ USB Print Successful", Toast.LENGTH_LONG).show();
+
+                        refreshAllAdapters();
+
+                    });
+                }
+            }
+
+            @Override
+            public void onPrintError(String error) {
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        progressDialog.dismiss();
+                        showRetryDialog(entry, error);
+                    });
+                }
+            }
+        };
+
+        printerManager.autoDetectAndPrintAsync(textContent, listener);
+    }
+
+    /**
+     * Print with Bluetooth
+     */
+    private void printWithBluetooth(WeighmentEntry entry) {
+        // Similar to USB but for Bluetooth
+        // You'll need to implement Bluetooth printing
+        Toast.makeText(getActivity(), "Bluetooth printing not implemented", Toast.LENGTH_SHORT).show();
+    }
+
+    /**
+     * Print with NokoPrint
+     */
+    private void printWithNokoPrint(WeighmentEntry entry) {
+        String printContent = buildPrintText(entry);
+        NokoPrintDirectPrinter nokoPrinter = new NokoPrintDirectPrinter(requireContext());
+
+        // Create a text file
+        try {
+            File textFile = new File(requireContext().getCacheDir(),
+                    "weighment_" + System.currentTimeMillis() + ".txt");
+            FileOutputStream fos = new FileOutputStream(textFile);
+            fos.write(printContent.getBytes());
+            fos.close();
+
+            nokoPrinter.printTextFile(textFile, "Weighment_Ticket.txt");
+        } catch (Exception e) {
+            Toast.makeText(getActivity(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Auto detect best method and print
+     */
+    private void autoDetectAndPrint(WeighmentEntry entry) {
+        if (mainActivity != null && mainActivity.isPrinterConnected()) {
+            // Try PCL first (best for HP)
+            PrinterManager printerManager = mainActivity.getPrinterManager();
+            if (printerManager.usbPrinterHelper != null) {
+                // Check if it's likely an HP printer
+                boolean isHP = false;
+                if (printerManager.usbPrinterHelper.getCurrentDevice() != null) {
+                    int vid = printerManager.usbPrinterHelper.getCurrentDevice().getVendorId();
+                    isHP = (vid == 0x03F0 || vid == 0x03F1 || vid == 0x03F2 || vid == 0x03F3);
+                }
+
+                if (isHP) {
+                    printWithPCL(entry);
+                } else {
+                    // For non-HP, try standard print
+                    printUsingAndroidPrintFramework(entry);
+                }
+            } else {
+                printUsingAndroidPrintFramework(entry);
+            }
+        } else {
+            printUsingAndroidPrintFramework(entry);
+        }
+    }
+
 
     /**
      * Show print preview dialog
@@ -364,20 +775,122 @@ public class DFragment extends Fragment {
         textView.setTextColor(Color.BLACK);
 
         builder.setView(textView);
-        builder.setPositiveButton("Print", (dialog, which) -> {
-            // Here you would implement actual printing
-            // For now, just show a toast
-            Toast.makeText(getActivity(), "Printing Entry #" + entry.getSerialNo(),
-                    Toast.LENGTH_SHORT).show();
-
-            // You can also update the display
-            if (txtDisplayTwoView != null) {
-                txtDisplayTwoView.setText("PRINTED: " + entry.getSerialNo() +
-                        " | Net: " + entry.getNet() + " KG");
-            }
+        builder.setPositiveButton("Print via Android", (dialog, which) -> {
+            printUsingAndroidPrintFramework(entry);
         });
         builder.setNegativeButton("Cancel", null);
         builder.show();
+    }
+
+    /**
+     * Print using Android's built-in print framework
+     */
+    private void printUsingAndroidPrintFramework(WeighmentEntry entry) {
+        try {
+            // Build HTML content for better formatting
+            String htmlContent = buildPrintHtml(entry);
+
+            // Create a print job
+            PrintHelper printHelper = new PrintHelper(getActivity());
+            printHelper.setScaleMode(PrintHelper.SCALE_MODE_FIT);
+
+            // Create a bitmap from a TextView
+            TextView printView = new TextView(getActivity());
+            printView.setText(buildPrintText(entry));
+            printView.setTextSize(12);
+            printView.setPadding(50, 50, 50, 50);
+            printView.setTextColor(Color.BLACK);
+            printView.setBackgroundColor(Color.WHITE);
+
+            // Print the view
+            printHelper.printBitmap("weighment_" + entry.getSerialNo(),
+                    loadBitmapFromView(printView));
+
+            Toast.makeText(getActivity(), "Print job created for Entry #" + entry.getSerialNo(),
+                    Toast.LENGTH_SHORT).show();
+
+            // Update display
+            if (txtDisplayTwoView != null) {
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                txtDisplayTwoView.setText("PRINT JOB: " + entry.getSerialNo() +
+                        " | Net: " + entry.getNet() + " KG at " + sdf.format(new Date()));
+            }
+
+        } catch (Exception e) {
+            Log.e("DFragment", "Error in Android printing", e);
+            Toast.makeText(getActivity(), "Error creating print job", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Build HTML formatted print content
+     */
+    private String buildPrintHtml(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        return "<html><body style='font-family: monospace; padding: 20px;'>" +
+                "<h2 style='text-align: center;'>WEIGHMENT TICKET</h2>" +
+                "<hr>" +
+                "<p><b>Slip No:</b> " + entry.getSerialNo() + "</p>" +
+                "<p><b>Date/Time:</b> " + dateTime + "</p>" +
+                "<hr>" +
+                "<p><b>Vehicle No:</b> " + entry.getVehicleNo() + "</p>" +
+                "<p><b>Vehicle Type:</b> " + entry.getVehicleType() + "</p>" +
+                "<p><b>Material:</b> " + entry.getMaterial() + "</p>" +
+                "<p><b>Party:</b> " + entry.getParty() + "</p>" +
+                "<p><b>Charge:</b> " + entry.getCharge() + "</p>" +
+                "<hr>" +
+                "<p><b>Gross Weight:</b> " + entry.getGross() + " kg</p>" +
+                "<p><b>Tare Weight:</b> " + entry.getTare() + " kg</p>" +
+                (entry.getManualTare() != null && !entry.getManualTare().isEmpty() && !entry.getManualTare().equals("0") ?
+                        "<p><b>Manual Tare:</b> " + entry.getManualTare() + " kg</p>" : "") +
+                "<hr>" +
+                "<h3>NET WEIGHT: " + entry.getNet() + " kg</h3>" +
+                "<hr>" +
+                "</body></html>";
+    }
+
+    /**
+     * Build plain text print content
+     */
+    private String buildPrintText(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        return "================================\n" +
+                "     WEIGHMENT TICKET\n" +
+                "================================\n" +
+                "Slip No: " + entry.getSerialNo() + "\n" +
+                "Date/Time: " + dateTime + "\n" +
+                "--------------------------------\n" +
+                "Vehicle No: " + entry.getVehicleNo() + "\n" +
+                "Vehicle Type: " + entry.getVehicleType() + "\n" +
+                "Material: " + entry.getMaterial() + "\n" +
+                "Party: " + entry.getParty() + "\n" +
+                "Charge: " + entry.getCharge() + "\n" +
+                "--------------------------------\n" +
+                "Gross Weight: " + entry.getGross() + " kg\n" +
+                "Tare Weight: " + entry.getTare() + " kg\n" +
+                (entry.getManualTare() != null && !entry.getManualTare().isEmpty() && !entry.getManualTare().equals("0") ?
+                        "Manual Tare: " + entry.getManualTare() + " kg\n" : "") +
+                "--------------------------------\n" +
+                "NET WEIGHT: " + entry.getNet() + " kg\n" +
+                "================================";
+    }
+
+    /**
+     * Convert a View to Bitmap for printing
+     */
+    private Bitmap loadBitmapFromView(View v) {
+        v.measure(View.MeasureSpec.makeMeasureSpec(500, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        v.layout(0, 0, v.getMeasuredWidth(), v.getMeasuredHeight());
+        Bitmap b = Bitmap.createBitmap(v.getMeasuredWidth(), v.getMeasuredHeight(),
+                Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        v.draw(c);
+        return b;
     }
 
     private void loadEntry() {
@@ -581,5 +1094,22 @@ public class DFragment extends Fragment {
         searchSerialEditText.requestFocus();
         refreshAllAdapters();
         setFormFieldsNonEditable();
+
+        // Check printer status from MainActivity
+        if (mainActivity != null) {
+            updatePrinterStatus(mainActivity.isPrinterConnected(), mainActivity.getConnectedPrinterName());
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // No need to unregister receiver here as it's managed by MainActivity
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // No need to disconnect printer here as it's managed by MainActivity
     }
 }
