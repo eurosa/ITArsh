@@ -28,6 +28,8 @@ android {
     }
 }
 
+
+
 dependencies {
     implementation 'androidx.print:print:1.0.0'
     implementation 'com.itextpdf:itext7-core:7.2.5'
@@ -37,7 +39,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     // DantSu ESC/POS Printer Library (Best for USB printing)
 // DantSu ESC/POS Printer Library
-    implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.4.0'
+    // DantSu ESC/POS Printer Library
+    implementation 'com.github.DantSu:ESCPOS-ThermalPrinter-Android:3.2.0'
 
     // AndroidX Print Helper
     implementation 'androidx.print:print:1.1.0'

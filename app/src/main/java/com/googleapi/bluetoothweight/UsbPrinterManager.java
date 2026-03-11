@@ -554,15 +554,15 @@ public class UsbPrinterManager {
 
         } catch (EscPosConnectionException e) {
             String error = "Connection error: " + e.getMessage();
-            Log.e(TAG, error, e);
+            Log.e(TAG, error);
             notifyPrintError(error);
         } catch (EscPosParserException e) {
             String error = "Parser error: " + e.getMessage();
-            Log.e(TAG, error, e);
+            Log.e(TAG, error);
             notifyPrintError(error);
         } catch (EscPosEncodingException e) {
             String error = "Encoding error: " + e.getMessage();
-            Log.e(TAG, error, e);
+            Log.e(TAG, error);
             notifyPrintError(error);
         } catch (Exception e) {
             String error = "Print error: " + e.getMessage();
