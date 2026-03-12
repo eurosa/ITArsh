@@ -352,6 +352,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         });
 
+        // Try auto-connect after a short delay to ensure USB system is ready
+        new Handler().postDelayed(() -> {
+            printerMenuHelper.tryAutoConnectLastPrinter();
+        }, 1000);
+
     }
     private void checkUsbPermission() {
         UsbPermissionHelper permissionHelper = new UsbPermissionHelper(this);
@@ -1875,6 +1880,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             new Handler(Looper.getMainLooper()).postDelayed(() -> {
                 tryAutoConnect();
             }, 2000);
+        }
+        if (printerMenuHelper != null) {
+            printerMenuHelper.tryAutoConnectLastPrinter();
         }
     }
     private boolean isPrinterDevice(UsbDevice device) {

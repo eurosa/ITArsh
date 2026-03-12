@@ -87,7 +87,50 @@ public class PrinterMenuHelper {
             }
         }
     }
+    /**
+     * Try to auto-connect to the last used printer
+     * Call this when the activity starts/resumes
+     */
+    public void tryAutoConnectLastPrinter() {
+        PrinterPreferences prefs = PrinterPreferences.getInstance(activity);
 
+        if (!prefs.hasLastPrinter()) {
+            Log.d("PrinterMenuHelper", "No last printer to auto-connect");
+            return;
+        }
+
+        String lastPrinterName = prefs.getLastPrinterName();
+        int lastVid = prefs.getLastPrinterVid();
+        int lastPid = prefs.getLastPrinterPid();
+
+        Log.d("PrinterMenuHelper", "Attempting to auto-connect to last printer: " + lastPrinterName +
+                " (VID: 0x" + Integer.toHexString(lastVid) + ", PID: 0x" + Integer.toHexString(lastPid) + ")");
+
+        showProgressDialog("Auto-connecting to last printer...");
+
+        // First, check if the printer is still connected
+        UsbManager usbManager = (UsbManager) activity.getSystemService(Context.USB_SERVICE);
+        HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
+
+        UsbDevice targetDevice = null;
+
+        for (UsbDevice device : deviceList.values()) {
+            if (device.getVendorId() == lastVid && device.getProductId() == lastPid) {
+                targetDevice = device;
+                break;
+            }
+        }
+
+        if (targetDevice == null) {
+            dismissProgressDialog();
+            Log.d("PrinterMenuHelper", "Last printer not found in connected devices");
+            Toast.makeText(activity, "Last printer not found. Please reconnect.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        // Connect to the found device
+        connectToPrinter(targetDevice, true); // true indicates auto-connect
+    }
     public boolean handlePrinterMenuItem(MenuItem item) {
         int itemId = item.getItemId();
 
@@ -758,6 +801,12 @@ public class PrinterMenuHelper {
     /**
      * Show printer selection dialog
      */
+    /**
+     * Show printer selection dialog
+     */
+    /**
+     * Show printer selection dialog
+     */
     private void showPrinterSelectionDialog(List<UsbPrinterHelper.PrinterInfo> printers) {
         if (printers.isEmpty()) {
             Toast.makeText(activity, "No printers found", Toast.LENGTH_SHORT).show();
@@ -773,7 +822,14 @@ public class PrinterMenuHelper {
         builder.setTitle("Select Printer")
                 .setItems(printerNames, (dialog, which) -> {
                     UsbPrinterHelper.PrinterInfo selected = printers.get(which);
-                    connectToPrinter(selected.device);
+                    // Save the printer info even before connecting
+                    PrinterPreferences.getInstance(activity).saveLastPrinterInfo(
+                            selected.toString(),
+                            selected.device.getVendorId(),
+                            selected.device.getProductId()
+                    );
+                    // Pass false since this is a manual connection, not auto-connect
+                    connectToPrinter(selected.device, false);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -782,8 +838,11 @@ public class PrinterMenuHelper {
     /**
      * Connect to selected printer
      */
-    private void connectToPrinter(UsbDevice printer) {
-        showProgressDialog("Connecting to printer...");
+    /**
+     * Connect to selected printer with option to specify if it's auto-connect
+     */
+    private void connectToPrinter(UsbDevice printer, boolean isAutoConnect) {
+        showProgressDialog(isAutoConnect ? "Auto-connecting to printer..." : "Connecting to printer...");
 
         printerManager.addListener(new PrinterManager.PrinterConnectionAdapter() {
             @Override
@@ -791,7 +850,15 @@ public class PrinterMenuHelper {
                 activity.runOnUiThread(() -> {
                     dismissProgressDialog();
                     printerManager.removeListener(this);
-                    Toast.makeText(activity, "✅ Connected to: " + printerName, Toast.LENGTH_LONG).show();
+
+                    // Save the printer for auto-connect
+                    PrinterPreferences.getInstance(activity).saveLastPrinter(printer);
+
+                    String message = isAutoConnect ?
+                            "✅ Auto-connected to: " + printerName :
+                            "✅ Connected to: " + printerName;
+                    Toast.makeText(activity, message, Toast.LENGTH_LONG).show();
+
                     if (callback != null) {
                         callback.onPrinterSelected(printer);
                     }
@@ -803,7 +870,16 @@ public class PrinterMenuHelper {
                 activity.runOnUiThread(() -> {
                     dismissProgressDialog();
                     printerManager.removeListener(this);
-                    Toast.makeText(activity, "❌ Connection failed: " + error, Toast.LENGTH_LONG).show();
+
+                    if (!isAutoConnect) {
+                        // Only clear last printer if manual connection fails
+                        // For auto-connect, we keep it to try again later
+                        Toast.makeText(activity, "❌ Connection failed: " + error, Toast.LENGTH_LONG).show();
+                    } else {
+                        Toast.makeText(activity, "❌ Auto-connect failed: " + error, Toast.LENGTH_LONG).show();
+                        // Optionally clear the failed printer
+                        // PrinterPreferences.getInstance(activity).clearLastPrinter();
+                    }
                 });
             }
 
@@ -813,6 +889,11 @@ public class PrinterMenuHelper {
                     dismissProgressDialog();
                     printerManager.removeListener(this);
                     Toast.makeText(activity, "❌ USB permission denied", Toast.LENGTH_LONG).show();
+
+                    if (!isAutoConnect) {
+                        // Clear last printer if permission denied for manual connection
+                        PrinterPreferences.getInstance(activity).clearLastPrinter();
+                    }
                 });
             }
         });
@@ -820,6 +901,9 @@ public class PrinterMenuHelper {
         printerManager.connectToPrinter(printer);
     }
 
+    /**
+     * Confirm disconnect printer
+     */
     /**
      * Confirm disconnect printer
      */
@@ -834,6 +918,8 @@ public class PrinterMenuHelper {
                 .setMessage("Are you sure you want to disconnect the current printer?")
                 .setPositiveButton("Disconnect", (dialog, which) -> {
                     printerManager.disconnectPrinter();
+                    // Clear the saved printer preference
+                    PrinterPreferences.getInstance(activity).clearLastPrinter();
                     Toast.makeText(activity, "Printer disconnected", Toast.LENGTH_SHORT).show();
                     if (callback != null) {
                         callback.onPrinterDisconnected();
