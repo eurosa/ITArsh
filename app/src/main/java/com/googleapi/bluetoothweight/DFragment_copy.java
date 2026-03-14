@@ -401,6 +401,8 @@ public class DFragment_copy extends Fragment {
                         });
                     }
                 }
+
+
             });
 
             boolean printed = printerManager.autoDetectAndPrint(printContent);
@@ -693,6 +695,8 @@ public class DFragment_copy extends Fragment {
                     });
                 }
             }
+
+
         };
 
         printerManager.autoDetectAndPrintAsync(textContent, listener);

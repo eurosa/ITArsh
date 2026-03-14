@@ -6,19 +6,18 @@ import android.hardware.usb.UsbDevice;
 
 public class PrinterPreferences {
     private static final String PREF_NAME = "printer_prefs";
-    private static final String KEY_LAST_PRINTER_TYPE = "last_printer_type";
     private static final String KEY_LAST_PRINTER_NAME = "last_printer_name";
     private static final String KEY_LAST_PRINTER_VID = "last_printer_vid";
     private static final String KEY_LAST_PRINTER_PID = "last_printer_pid";
-    private static final String KEY_LAST_WIFI_PRINTER_IP = "last_wifi_printer_ip";
-    private static final String KEY_LAST_WIFI_PRINTER_NAME = "last_wifi_printer_name";
-    private static final String KEY_LAST_PRINTER_CONNECTED = "last_printer_connected";
+    private static final String KEY_PENDING_VID = "pending_vid";
+    private static final String KEY_PENDING_PID = "pending_pid";
+    private static final String KEY_PENDING_TIMESTAMP = "pending_timestamp";
 
-    private SharedPreferences preferences;
     private static PrinterPreferences instance;
+    private SharedPreferences prefs;
 
     private PrinterPreferences(Context context) {
-        preferences = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        prefs = context.getApplicationContext().getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
     }
 
     public static synchronized PrinterPreferences getInstance(Context context) {
@@ -28,96 +27,128 @@ public class PrinterPreferences {
         return instance;
     }
 
-    // Save USB printer with device
-    public void saveLastPrinter(UsbDevice printer) {
-        if (printer != null) {
-            SharedPreferences.Editor editor = preferences.edit();
-            editor.putString(KEY_LAST_PRINTER_TYPE, "USB");
-            editor.putString(KEY_LAST_PRINTER_NAME, printer.getDeviceName());
-            editor.putInt(KEY_LAST_PRINTER_VID, printer.getVendorId());
-            editor.putInt(KEY_LAST_PRINTER_PID, printer.getProductId());
-            editor.putBoolean(KEY_LAST_PRINTER_CONNECTED, true);
-            editor.apply();
-        }
-    }
-
-    // Save USB printer info (existing method)
+    /**
+     * Save last printer info
+     */
     public void saveLastPrinterInfo(String printerName, int vid, int pid) {
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(KEY_LAST_PRINTER_TYPE, "USB");
+        SharedPreferences.Editor editor = prefs.edit();
         editor.putString(KEY_LAST_PRINTER_NAME, printerName);
         editor.putInt(KEY_LAST_PRINTER_VID, vid);
         editor.putInt(KEY_LAST_PRINTER_PID, pid);
-        editor.putBoolean(KEY_LAST_PRINTER_CONNECTED, true);
         editor.apply();
     }
 
-    // Save USB printer with device and name (new method)
-    public void saveLastUsbPrinter(UsbDevice printer, String printerName) {
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(KEY_LAST_PRINTER_TYPE, "USB");
-        editor.putString(KEY_LAST_PRINTER_NAME, printerName);
-        editor.putInt(KEY_LAST_PRINTER_VID, printer.getVendorId());
-        editor.putInt(KEY_LAST_PRINTER_PID, printer.getProductId());
-        editor.putBoolean(KEY_LAST_PRINTER_CONNECTED, true);
-        editor.apply();
+    /**
+     * Save last printer from UsbDevice
+     */
+    public void saveLastPrinter(UsbDevice printer) {
+        if (printer != null) {
+            saveLastPrinterInfo(
+                    printer.getDeviceName(),
+                    printer.getVendorId(),
+                    printer.getProductId()
+            );
+        }
     }
 
-    // Save USB printer info (new method - alias for saveLastPrinterInfo)
-    public void saveLastUsbPrinterInfo(String printerName, int vid, int pid) {
-        saveLastPrinterInfo(printerName, vid, pid);
-    }
-
-    // Save WiFi printer
-    public void saveLastWifiPrinter(String ipAddress, String printerName) {
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putString(KEY_LAST_PRINTER_TYPE, "WIFI");
-        editor.putString(KEY_LAST_PRINTER_NAME, printerName);
-        editor.putString(KEY_LAST_WIFI_PRINTER_IP, ipAddress);
-        editor.putString(KEY_LAST_WIFI_PRINTER_NAME, printerName);
-        editor.putBoolean(KEY_LAST_PRINTER_CONNECTED, true);
-        editor.apply();
-    }
-
-    // Clear last printer
-    public void clearLastPrinter() {
-        SharedPreferences.Editor editor = preferences.edit();
-        editor.putBoolean(KEY_LAST_PRINTER_CONNECTED, false);
-        editor.apply();
-    }
-
-    // Check if last printer exists
+    /**
+     * Check if there is a last printer saved
+     */
     public boolean hasLastPrinter() {
-        return preferences.getBoolean(KEY_LAST_PRINTER_CONNECTED, false);
+        return prefs.contains(KEY_LAST_PRINTER_VID) && prefs.contains(KEY_LAST_PRINTER_PID);
     }
 
-    // Get last printer type (USB or WIFI)
-    public String getLastPrinterType() {
-        return preferences.getString(KEY_LAST_PRINTER_TYPE, "");
-    }
-
-    // Get last printer name
+    /**
+     * Get last printer name
+     */
     public String getLastPrinterName() {
-        return preferences.getString(KEY_LAST_PRINTER_NAME, "");
+        return prefs.getString(KEY_LAST_PRINTER_NAME, "Unknown Printer");
     }
 
-    // Get last printer VID
+    /**
+     * Get last printer vendor ID
+     */
     public int getLastPrinterVid() {
-        return preferences.getInt(KEY_LAST_PRINTER_VID, 0);
+        return prefs.getInt(KEY_LAST_PRINTER_VID, -1);
     }
 
-    // Get last printer PID
+    /**
+     * Get last printer product ID
+     */
     public int getLastPrinterPid() {
-        return preferences.getInt(KEY_LAST_PRINTER_PID, 0);
+        return prefs.getInt(KEY_LAST_PRINTER_PID, -1);
     }
 
-    // Get last WiFi printer IP
-    public String getLastWifiPrinterIp() {
-        return preferences.getString(KEY_LAST_WIFI_PRINTER_IP, "");
+    /**
+     * Clear last printer
+     */
+    public void clearLastPrinter() {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.remove(KEY_LAST_PRINTER_NAME);
+        editor.remove(KEY_LAST_PRINTER_VID);
+        editor.remove(KEY_LAST_PRINTER_PID);
+        editor.apply();
     }
 
-    // Get last WiFi printer name
-    public String getLastWifiPrinterName() {
-        return preferences.getString(KEY_LAST_WIFI_PRINTER_NAME, "");
+    /**
+     * Save pending connection (for after reboot)
+     */
+    public void savePendingConnection(int vid, int pid) {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putInt(KEY_PENDING_VID, vid);
+        editor.putInt(KEY_PENDING_PID, pid);
+        editor.putLong(KEY_PENDING_TIMESTAMP, System.currentTimeMillis());
+        editor.apply();
+    }
+
+    /**
+     * Check if there is a pending connection
+     */
+    public boolean hasPendingConnection() {
+        // Also check if the pending connection is not too old (e.g., within last 5 minutes)
+        long timestamp = prefs.getLong(KEY_PENDING_TIMESTAMP, 0);
+        boolean hasPending = prefs.contains(KEY_PENDING_VID) && prefs.contains(KEY_PENDING_PID);
+
+        if (hasPending && (System.currentTimeMillis() - timestamp) > 300000) { // 5 minutes
+            // Pending connection is too old, clear it
+            clearPendingConnection();
+            return false;
+        }
+
+        return hasPending;
+    }
+
+    /**
+     * Get pending vendor ID
+     */
+    public int getPendingVid() {
+        return prefs.getInt(KEY_PENDING_VID, -1);
+    }
+
+    /**
+     * Get pending product ID
+     */
+    public int getPendingPid() {
+        return prefs.getInt(KEY_PENDING_PID, -1);
+    }
+
+    /**
+     * Clear pending connection
+     */
+    public void clearPendingConnection() {
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.remove(KEY_PENDING_VID);
+        editor.remove(KEY_PENDING_PID);
+        editor.remove(KEY_PENDING_TIMESTAMP);
+        editor.apply();
+    }
+
+    /**
+     * Check if a device matches the pending connection
+     */
+    public boolean isPendingDevice(UsbDevice device) {
+        if (device == null || !hasPendingConnection()) return false;
+        return device.getVendorId() == getPendingVid() &&
+                device.getProductId() == getPendingPid();
     }
 }

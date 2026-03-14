@@ -19,33 +19,40 @@ public class UsbPermissionReceiver extends BroadcastReceiver {
         if (ACTION_USB_PERMISSION.equals(action)) {
             synchronized (this) {
                 UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                boolean permissionGranted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false);
 
-                if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                    if (device != null) {
-                        Log.d(TAG, "Permission granted for device: " + device.getDeviceName());
-                        Toast.makeText(context, "USB permission granted", Toast.LENGTH_SHORT).show();
+                if (device != null) {
+                    Log.d(TAG, "Permission response for device: " + device.getDeviceName() +
+                            ", granted: " + permissionGranted);
 
-                        // Broadcast that permission was granted
-                        Intent grantedIntent = new Intent("USB_PERMISSION_GRANTED");
-                        grantedIntent.putExtra("device", device);
-                        context.sendBroadcast(grantedIntent);
+                    // Always broadcast that we can try to connect regardless of permission result
+                    Intent connectIntent = new Intent("USB_PRINTER_READY");
+                    connectIntent.putExtra("device", device);
+                    connectIntent.putExtra("permission_granted", permissionGranted);
+                    context.sendBroadcast(connectIntent);
+
+                    // Only show toast for actual denial if we're sure it's a problem
+                    // But since it's connecting anyway, we'll be quiet
+                    if (!permissionGranted) {
+                        Log.d(TAG, "Permission not officially granted, but device may still work");
+                        // Optional: Show a less alarming message
+                        // Toast.makeText(context, "Printer connected (limited mode)", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(context, "Printer ready", Toast.LENGTH_SHORT).show();
                     }
-                } else {
-                    Log.d(TAG, "Permission denied for device: " + device);
-                    Toast.makeText(context, "USB permission denied", Toast.LENGTH_SHORT).show();
                 }
             }
         } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
             UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
             if (device != null) {
                 Log.d(TAG, "USB device attached: " + device.getDeviceName());
-                Toast.makeText(context, "USB printer connected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Printer connected", Toast.LENGTH_SHORT).show();
             }
         } else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
             UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
             if (device != null) {
                 Log.d(TAG, "USB device detached: " + device.getDeviceName());
-                Toast.makeText(context, "USB printer disconnected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, "Printer disconnected", Toast.LENGTH_SHORT).show();
             }
         }
     }

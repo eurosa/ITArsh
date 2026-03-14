@@ -1087,6 +1087,8 @@ public class AFragment_copy extends Fragment {
                     });
                 }
             }
+
+
         };
 
         printerManager.autoDetectAndPrintAsync(textContent, listener);

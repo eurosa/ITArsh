@@ -4,24 +4,29 @@ import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.widget.AppCompatButton;
 import androidx.appcompat.widget.AppCompatSpinner;
-import androidx.core.content.FileProvider;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -65,6 +70,25 @@ public class CFragment extends Fragment {
     private static final int STORAGE_PERMISSION_CODE = 1002;
     private static final int MANAGE_STORAGE_CODE = 1003;
 
+    // Focus management variables
+    private int currentFocusIndex = 0;
+    private View[] focusableViews;
+    private static final int[] FOCUSABLE_IDS = {
+            R.id.spinnerVehicleType,
+            R.id.spinnerMaterial,
+            R.id.spinnerParty,
+            R.id.btnFromDate,
+            R.id.btnToDate,
+            R.id.btnSearch,
+            R.id.btnClear,
+            R.id.btnExport
+    };
+
+    // Colors for focus states
+    private static final int COLOR_FOCUSED = Color.parseColor("#FFA500"); // Orange
+    private static final int COLOR_NORMAL = Color.parseColor("#666666"); // Dark Gray
+    private static final int COLOR_SELECTED = Color.parseColor("#4CAF50"); // Green
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
@@ -74,7 +98,14 @@ public class CFragment extends Fragment {
         setupDateFormats();
         setupSpinners();
         setupListeners();
+        setupFocusManagement();
         loadInitialData();
+
+        // Set initial focus on vehicle type spinner
+        view.post(() -> {
+            spinnerVehicleType.requestFocus();
+            highlightView(spinnerVehicleType);
+        });
 
         return view;
     }
@@ -102,6 +133,190 @@ public class CFragment extends Fragment {
 
         // Make export button visible
         btnExport.setVisibility(View.VISIBLE);
+
+        // Apply normal styling to all views initially
+        applyNormalStyle(spinnerVehicleType);
+        applyNormalStyle(spinnerMaterial);
+        applyNormalStyle(spinnerParty);
+        applyButtonNormalStyle(btnFromDate);
+        applyButtonNormalStyle(btnToDate);
+        applyButtonNormalStyle(btnSearch);
+        applyButtonNormalStyle(btnClear);
+        applyButtonNormalStyle(btnExport);
+    }
+
+    private void setupFocusManagement() {
+        // Create array of focusable views
+        focusableViews = new View[]{
+                spinnerVehicleType,
+                spinnerMaterial,
+                spinnerParty,
+                btnFromDate,
+                btnToDate,
+                btnSearch,
+                btnClear,
+                btnExport
+        };
+
+        // Set focus change listeners
+        for (int i = 0; i < focusableViews.length; i++) {
+            final int index = i;
+            focusableViews[i].setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    currentFocusIndex = index;
+                    highlightView(v);
+                } else {
+                    removeHighlight(v);
+                }
+            });
+        }
+
+        // Set key listeners for navigation
+        setupKeyNavigation();
+    }
+
+    private void setupKeyNavigation() {
+        View rootView = getView();
+        if (rootView == null) return;
+
+        rootView.setFocusable(true);
+        rootView.setFocusableInTouchMode(true);
+
+        rootView.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                return handleKeyNavigation(keyCode, event);
+            }
+            return false;
+        });
+
+        // Also set on each focusable view for better key handling
+        for (View view : focusableViews) {
+            view.setOnKeyListener((v, keyCode, event) -> {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    return handleKeyNavigation(keyCode, event);
+                }
+                return false;
+            });
+        }
+    }
+
+    private boolean handleKeyNavigation(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_TAB:
+                // Move to next focusable view
+                moveFocus(1);
+                return true;
+
+            case KeyEvent.KEYCODE_DPAD_UP:
+                // Move to previous focusable view
+                moveFocus(-1);
+                return true;
+
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                // For spinners, open dropdown
+                if (focusableViews[currentFocusIndex] instanceof AppCompatSpinner) {
+                    ((AppCompatSpinner) focusableViews[currentFocusIndex]).performClick();
+                    return true;
+                }
+                break;
+
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+                // Activate the current view
+                View currentView = focusableViews[currentFocusIndex];
+                if (currentView instanceof AppCompatButton) {
+                    currentView.performClick();
+                    return true;
+                } else if (currentView instanceof AppCompatSpinner) {
+                    ((AppCompatSpinner) currentView).performClick();
+                    return true;
+                }
+                break;
+
+            case KeyEvent.KEYCODE_F5:
+                // Refresh report
+                refreshReport();
+                return true;
+        }
+        return false;
+    }
+
+    private void moveFocus(int direction) {
+        int newIndex = currentFocusIndex + direction;
+        if (newIndex >= 0 && newIndex < focusableViews.length) {
+            focusableViews[newIndex].requestFocus();
+        }
+    }
+
+    private void highlightView(View view) {
+        if (view instanceof AppCompatSpinner) {
+            applyFocusedStyle(view);
+        } else if (view instanceof AppCompatButton) {
+            applyButtonFocusedStyle((AppCompatButton) view);
+        }
+    }
+
+    private void removeHighlight(View view) {
+        if (view instanceof AppCompatSpinner) {
+            applyNormalStyle(view);
+        } else if (view instanceof AppCompatButton) {
+            applyButtonNormalStyle((AppCompatButton) view);
+        }
+    }
+
+    private void applyFocusedStyle(View view) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(Color.WHITE);
+        drawable.setStroke(3, COLOR_FOCUSED);
+        drawable.setCornerRadius(8);
+        view.setBackground(drawable);
+
+        if (view instanceof TextView) {
+            ((TextView) view).setTextColor(Color.BLACK);
+        }
+    }
+
+    private void applyNormalStyle(View view) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(Color.WHITE);
+        drawable.setStroke(1, COLOR_NORMAL);
+        drawable.setCornerRadius(8);
+        view.setBackground(drawable);
+
+        if (view instanceof TextView) {
+            ((TextView) view).setTextColor(Color.BLACK);
+        }
+    }
+
+    private void applyButtonFocusedStyle(AppCompatButton button) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(COLOR_FOCUSED);
+        drawable.setCornerRadius(8);
+        button.setBackground(drawable);
+        button.setTextColor(Color.WHITE);
+    }
+
+    private void applyButtonNormalStyle(AppCompatButton button) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(Color.parseColor("#2196F3")); // Default blue color
+        drawable.setCornerRadius(8);
+        button.setBackground(drawable);
+        button.setTextColor(Color.WHITE);
+    }
+
+    private void applyButtonSelectedStyle(AppCompatButton button) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setColor(COLOR_SELECTED);
+        drawable.setCornerRadius(8);
+        button.setBackground(drawable);
+        button.setTextColor(Color.WHITE);
     }
 
     /**
@@ -112,6 +327,11 @@ public class CFragment extends Fragment {
         if (isAdded() && getActivity() != null) {
             performSearch();
             Toast.makeText(getActivity(), "Report Refreshed", Toast.LENGTH_SHORT).show();
+
+            // Maintain focus on current view
+            if (currentFocusIndex >= 0 && currentFocusIndex < focusableViews.length) {
+                focusableViews[currentFocusIndex].requestFocus();
+            }
         }
     }
 
@@ -143,6 +363,7 @@ public class CFragment extends Fragment {
     private void setupSpinners() {
         // Vehicle Type Spinner
         List<String> vehicleTypes = databaseHelper.getUniqueVehicleTypes();
+        vehicleTypes.add(0, "All Vehicle Types");
         ArrayAdapter<String> vehicleAdapter = new ArrayAdapter<>(getActivity(),
                 android.R.layout.simple_spinner_item, vehicleTypes);
         vehicleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -150,6 +371,7 @@ public class CFragment extends Fragment {
 
         // Material Spinner
         List<String> materials = databaseHelper.getUniqueMaterials();
+        materials.add(0, "All Materials");
         ArrayAdapter<String> materialAdapter = new ArrayAdapter<>(getActivity(),
                 android.R.layout.simple_spinner_item, materials);
         materialAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -157,6 +379,7 @@ public class CFragment extends Fragment {
 
         // Party Spinner
         List<String> parties = databaseHelper.getUniqueParties();
+        parties.add(0, "All Parties");
         ArrayAdapter<String> partyAdapter = new ArrayAdapter<>(getActivity(),
                 android.R.layout.simple_spinner_item, parties);
         partyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -164,14 +387,93 @@ public class CFragment extends Fragment {
     }
 
     private void setupListeners() {
-        btnFromDate.setOnClickListener(v -> showDatePicker(true));
-        btnToDate.setOnClickListener(v -> showDatePicker(false));
-        btnSearch.setOnClickListener(v -> performSearch());
-        btnClear.setOnClickListener(v -> clearFilters());
+        btnFromDate.setOnClickListener(v -> {
+            showDatePicker(true);
+            applyButtonSelectedStyle(btnFromDate);
+            // Reset to normal after a delay
+            v.postDelayed(() -> {
+                if (!btnFromDate.hasFocus()) {
+                    applyButtonNormalStyle(btnFromDate);
+                }
+            }, 200);
+        });
+
+        btnToDate.setOnClickListener(v -> {
+            showDatePicker(false);
+            applyButtonSelectedStyle(btnToDate);
+            v.postDelayed(() -> {
+                if (!btnToDate.hasFocus()) {
+                    applyButtonNormalStyle(btnToDate);
+                }
+            }, 200);
+        });
+
+        btnSearch.setOnClickListener(v -> {
+            performSearch();
+            applyButtonSelectedStyle(btnSearch);
+            v.postDelayed(() -> {
+                if (!btnSearch.hasFocus()) {
+                    applyButtonNormalStyle(btnSearch);
+                }
+            }, 200);
+        });
+
+        btnClear.setOnClickListener(v -> {
+            clearFilters();
+            applyButtonSelectedStyle(btnClear);
+            v.postDelayed(() -> {
+                if (!btnClear.hasFocus()) {
+                    applyButtonNormalStyle(btnClear);
+                }
+            }, 200);
+        });
+
         btnExport.setOnClickListener(v -> {
-            // Show toast to confirm button click
             Toast.makeText(getActivity(), "Preparing export...", Toast.LENGTH_SHORT).show();
+            applyButtonSelectedStyle(btnExport);
             checkStoragePermissionAndExport();
+            v.postDelayed(() -> {
+                if (!btnExport.hasFocus()) {
+                    applyButtonNormalStyle(btnExport);
+                }
+            }, 200);
+        });
+
+        // Spinner selection listeners to update focus style
+        spinnerVehicleType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (spinnerVehicleType.hasFocus()) {
+                    highlightView(spinnerVehicleType);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        spinnerMaterial.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (spinnerMaterial.hasFocus()) {
+                    highlightView(spinnerMaterial);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        spinnerParty.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (spinnerParty.hasFocus()) {
+                    highlightView(spinnerParty);
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
@@ -284,15 +586,20 @@ public class CFragment extends Fragment {
 
     private void performSearch() {
         String vehicleType = spinnerVehicleType.getSelectedItem() != null ?
-                spinnerVehicleType.getSelectedItem().toString() : "All";
+                spinnerVehicleType.getSelectedItem().toString() : "All Vehicle Types";
         String material = spinnerMaterial.getSelectedItem() != null ?
-                spinnerMaterial.getSelectedItem().toString() : "All";
+                spinnerMaterial.getSelectedItem().toString() : "All Materials";
         String party = spinnerParty.getSelectedItem() != null ?
-                spinnerParty.getSelectedItem().toString() : "All";
+                spinnerParty.getSelectedItem().toString() : "All Parties";
+
+        // Convert "All" selections to empty string for database query
+        String queryVehicleType = vehicleType.equals("All Vehicle Types") ? "" : vehicleType;
+        String queryMaterial = material.equals("All Materials") ? "" : material;
+        String queryParty = party.equals("All Parties") ? "" : party;
 
         entryList.clear();
         entryList.addAll(databaseHelper.searchWeighments(
-                vehicleType, material, party, fromDate, toDate));
+                queryVehicleType, queryMaterial, queryParty, fromDate, toDate));
 
         adapter.notifyDataSetChanged();
         updateSummary();
@@ -324,20 +631,15 @@ public class CFragment extends Fragment {
         performSearch();
     }
 
-    /**
-     * Fixed showExportDialog method with better visibility
-     */
     private void showExportDialog() {
         if (getActivity() == null || getActivity().isFinishing()) {
             return;
         }
 
-        // Create and show the dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("📊 Export Report");
         builder.setMessage("Choose export format:");
 
-        // Create custom view for dialog
         LinearLayout layout = new LinearLayout(getActivity());
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 20, 50, 20);
@@ -350,7 +652,6 @@ public class CFragment extends Fragment {
         csvOption.setOnClickListener(v -> {
             exportToCSV();
             if (getActivity() != null) {
-                // Dismiss all dialogs
                 AlertDialog dialog = (AlertDialog) v.getTag();
                 if (dialog != null) dialog.dismiss();
             }
@@ -369,7 +670,6 @@ public class CFragment extends Fragment {
             }
         });
 
-        // Add divider
         View divider = new View(getActivity());
         divider.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 1));
@@ -383,50 +683,16 @@ public class CFragment extends Fragment {
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
 
         AlertDialog dialog = builder.create();
-
-        // Set tags for click listeners
         csvOption.setTag(dialog);
         pdfOption.setTag(dialog);
-
         dialog.show();
 
-        // Make sure dialog window is properly sized
         if (dialog.getWindow() != null) {
             dialog.getWindow().setLayout(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT);
         }
     }
-
-    /**
-     * Alternative simple dialog if the custom view doesn't work
-     */
-    /*
-    private void showExportDialog() {
-        if (getActivity() == null || getActivity().isFinishing()) {
-            return;
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setTitle("Export Report");
-        builder.setMessage("Choose export format:");
-
-        String[] options = {"CSV File", "PDF File"};
-
-        builder.setItems(options, (dialog, which) -> {
-            if (which == 0) {
-                exportToCSV();
-            } else {
-                exportToPDF();
-            }
-        });
-
-        builder.setNegativeButton("Cancel", null);
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-    }
-    */
 
     private void exportToCSV() {
         try {
@@ -435,7 +701,6 @@ public class CFragment extends Fragment {
 
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 
-            // Create directory if it doesn't exist
             if (!downloadDir.exists()) {
                 downloadDir.mkdirs();
             }
@@ -444,7 +709,6 @@ public class CFragment extends Fragment {
 
             FileWriter writer = new FileWriter(file);
 
-            // Write CSV header
             writer.append("Serial No,Vehicle No,Vehicle Type,Material,Party,Charge,Gross,Tare,Manual Tare,Net Weight,Date\n");
 
             SimpleDateFormat displayFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
@@ -477,8 +741,6 @@ public class CFragment extends Fragment {
             writer.close();
 
             Toast.makeText(getActivity(), "✅ CSV exported: " + fileName, Toast.LENGTH_LONG).show();
-
-            // Open the file
             openFile(file);
 
         } catch (IOException e) {
@@ -502,19 +764,16 @@ public class CFragment extends Fragment {
 
             File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
 
-            // Create directory if it doesn't exist
             if (!downloadDir.exists()) {
                 downloadDir.mkdirs();
             }
 
             File file = new File(downloadDir, fileName);
 
-            // Initialize PDF writer
             PdfWriter writer = new PdfWriter(file.getAbsolutePath());
             PdfDocument pdfDoc = new PdfDocument(writer);
             Document document = new Document(pdfDoc);
 
-            // Add title
             Paragraph title = new Paragraph("WEIGHMENT REPORT")
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontSize(18)
@@ -522,7 +781,6 @@ public class CFragment extends Fragment {
             document.add(title);
             document.add(new Paragraph("\n"));
 
-            // Add filter information
             String vehicleType = spinnerVehicleType.getSelectedItem().toString();
             String material = spinnerMaterial.getSelectedItem().toString();
             String party = spinnerParty.getSelectedItem().toString();
@@ -538,7 +796,6 @@ public class CFragment extends Fragment {
                     .setFontSize(10));
             document.add(new Paragraph("\n"));
 
-            // Add summary
             document.add(new Paragraph("Summary:")
                     .setBold()
                     .setFontSize(12));
@@ -548,12 +805,10 @@ public class CFragment extends Fragment {
                     .setBold());
             document.add(new Paragraph("\n"));
 
-            // Create table
             float[] columnWidths = {1, 2, 1.5f, 2, 2, 1, 1, 1, 1, 1.5f};
             Table table = new Table(UnitValue.createPercentArray(columnWidths));
             table.setWidth(UnitValue.createPercentValue(100));
 
-            // Add headers
             String[] headers = {"Slip No", "Vehicle No", "Type", "Material", "Party",
                     "Gross", "Tare", "Manual", "Net", "Date"};
 
@@ -565,7 +820,6 @@ public class CFragment extends Fragment {
                 table.addCell(headerCell);
             }
 
-            // Add data rows
             SimpleDateFormat displayFormat = new SimpleDateFormat("dd/MM/yy", Locale.getDefault());
 
             for (WeighmentEntry entry : entryList) {
@@ -597,8 +851,6 @@ public class CFragment extends Fragment {
             document.close();
 
             Toast.makeText(getActivity(), "✅ PDF exported: " + fileName, Toast.LENGTH_LONG).show();
-
-            // Open the file
             openFile(file);
 
         } catch (Exception e) {
@@ -630,5 +882,13 @@ public class CFragment extends Fragment {
     public void onResume() {
         super.onResume();
         performSearch();
+
+        // Request focus on vehicle type spinner when fragment resumes
+        if (spinnerVehicleType != null) {
+            spinnerVehicleType.post(() -> {
+                spinnerVehicleType.requestFocus();
+                highlightView(spinnerVehicleType);
+            });
+        }
     }
 }
