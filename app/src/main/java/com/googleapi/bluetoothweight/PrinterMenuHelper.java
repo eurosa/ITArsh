@@ -153,8 +153,8 @@ public class PrinterMenuHelper {
         String[] options;
         if (printerManager.isPrinterConnected()) {
             options = new String[]{
-                    "Scan for Printers",                // 0
-                    "Disconnect Current Printer",       // 1
+                    "Scan for Printers"                // 0
+                    /*"Disconnect Current Printer",       // 1
                     "Printer Status",                    // 2
                     "Diagnose Connection",                // 3
                     "Canon Style Print",                  // 4
@@ -168,11 +168,11 @@ public class PrinterMenuHelper {
                     "Try Every Endpoint",                  // 12
                     "Hard Reset",                          // 13
                     "Comprehensive Diagnostics",           // 14
-                    "List USB Devices"                     // 15
+                    "List USB Devices" */                    // 15
             };
         } else {
             options = new String[]{
-                    "Scan for Printers",                 // 0
+                    "Scan for Printers",                // 0
                     "Diagnose Connection",               // 1
                     "Comprehensive Diagnostics",         // 2
                     "List USB Devices"                    // 3

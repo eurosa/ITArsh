@@ -3,10 +3,15 @@ package com.googleapi.bluetoothweight;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Color;
+import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -28,6 +33,7 @@ public class MasterDataDialog {
     private String selectedType = DatabaseHelper.TYPE_VEHICLE_TYPE;
     private List<MasterData> currentDataList = new ArrayList<>();
     private MasterDataListAdapter listAdapter;
+    private Spinner spinnerDataType;
 
     // Types for spinner display - REMOVED Vehicle Number
     private final String[] dataTypes = {"Vehicle Type", "Material", "Party"};
@@ -49,7 +55,7 @@ public class MasterDataDialog {
         builder.setView(view);
 
         // Initialize views
-        Spinner spinnerDataType = view.findViewById(R.id.spinnerDataType);
+        spinnerDataType = view.findViewById(R.id.spinnerDataType);
         ListView listViewData = view.findViewById(R.id.listViewData);
         EditText editTextNewValue = view.findViewById(R.id.editTextNewValue);
         Button btnAdd = view.findViewById(R.id.btnAdd);
@@ -102,6 +108,9 @@ public class MasterDataDialog {
                     Toast.makeText(context, "Added successfully", Toast.LENGTH_SHORT).show();
                     editTextNewValue.setText("");
                     loadDataForType(selectedType);
+
+                    // Keep focus on spinner after adding
+                    setFocusOnSpinner();
                 } else {
                     Toast.makeText(context, "Failed to add", Toast.LENGTH_SHORT).show();
                 }
@@ -121,6 +130,61 @@ public class MasterDataDialog {
 
         dialog = builder.create();
         dialog.show();
+
+        // Set focus on spinner when dialog opens
+        setFocusOnSpinner();
+    }
+
+    /**
+     * Set focus on spinner with visual highlight
+     */
+    private void setFocusOnSpinner() {
+        if (spinnerDataType == null) return;
+
+        // Use post to ensure view is ready
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                // Request focus
+                spinnerDataType.requestFocus();
+                spinnerDataType.requestFocusFromTouch();
+
+                // Open dropdown automatically (optional - comment out if not wanted)
+                // spinnerDataType.performClick();
+
+                // Highlight the spinner with a different background
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                    spinnerDataType.setBackgroundResource(R.drawable.spinner_focused_background);
+                } else {
+                    spinnerDataType.setBackgroundColor(Color.parseColor("#E3F2FD")); // Light blue
+                }
+
+                // Remove highlight when focus is lost
+                spinnerDataType.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+                    @Override
+                    public void onFocusChange(View v, boolean hasFocus) {
+                        if (hasFocus) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                                spinnerDataType.setBackgroundResource(R.drawable.spinner_focused_background);
+                            } else {
+                                spinnerDataType.setBackgroundColor(Color.parseColor("#E3F2FD"));
+                            }
+                        } else {
+                            // Restore original background
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+                                spinnerDataType.setBackgroundResource(android.R.drawable.editbox_background);
+                            } else {
+                                spinnerDataType.setBackgroundColor(Color.TRANSPARENT);
+                            }
+                        }
+                    }
+                });
+
+                // Hide keyboard since spinner doesn't need it
+                InputMethodManager imm = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+                imm.hideSoftInputFromWindow(spinnerDataType.getWindowToken(), 0);
+            }
+        }, 200); // Small delay to ensure dialog is fully rendered
     }
 
     private void loadDataForType(String type) {
@@ -240,6 +304,9 @@ public class MasterDataDialog {
                 databaseHelper.deleteMasterData(data.getId());
                 Toast.makeText(context, "Deleted successfully", Toast.LENGTH_SHORT).show();
                 loadDataForType(selectedType);
+
+                // Return focus to main spinner after deletion
+                setFocusOnSpinner();
             }
         });
         builder.setNegativeButton("Cancel", null);

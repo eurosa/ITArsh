@@ -508,7 +508,122 @@
                 return false;
             }
         }
-    
+
+        /**
+         * Send raw byte data directly to the printer
+         * This is useful when you have pre-formatted data including PCL commands
+         */
+        public boolean sendRawData(byte[] data) {
+            addDebugInfo("========== SEND RAW DATA ==========");
+
+            if (!isConnected || usbConnection == null || usbEndpointOut == null) {
+                addDebugInfo("❌ Not connected");
+                if (callback != null) {
+                    callback.onPrintError("Printer not connected");
+                }
+                return false;
+            }
+
+            try {
+                addDebugInfo("Sending " + data.length + " raw bytes");
+                addDebugInfo("Endpoint: 0x" + Integer.toHexString(usbEndpointOut.getAddress()));
+                addDebugInfo("Max packet size: " + usbEndpointOut.getMaxPacketSize());
+
+                // For large data, we might need to split into chunks
+                int maxPacketSize = usbEndpointOut.getMaxPacketSize();
+                int offset = 0;
+                int totalTransferred = 0;
+
+                while (offset < data.length) {
+                    int chunkSize = Math.min(maxPacketSize, data.length - offset);
+                    byte[] chunk = new byte[chunkSize];
+                    System.arraycopy(data, offset, chunk, 0, chunkSize);
+
+                    int transferred = usbConnection.bulkTransfer(usbEndpointOut, chunk, chunkSize, 10000);
+
+                    if (transferred < 0) {
+                        addDebugInfo("❌ Bulk transfer failed at offset " + offset);
+                        if (callback != null) {
+                            callback.onPrintError("USB write failed at offset " + offset);
+                        }
+                        return false;
+                    }
+
+                    totalTransferred += transferred;
+                    offset += transferred;
+
+                    addDebugInfo("  Transferred chunk: " + transferred + " bytes (total: " + totalTransferred + ")");
+                }
+
+                if (totalTransferred == data.length) {
+                    addDebugInfo("✅ Successfully sent " + totalTransferred + " bytes");
+                    if (callback != null) {
+                        callback.onPrintSuccess();
+                    }
+                    return true;
+                } else {
+                    addDebugInfo("❌ Failed: sent " + totalTransferred + " of " + data.length + " bytes");
+                    if (callback != null) {
+                        callback.onPrintError("Sent " + totalTransferred + " of " + data.length + " bytes");
+                    }
+                    return false;
+                }
+
+            } catch (Exception e) {
+                addDebugInfo("❌ Exception: " + e.getMessage());
+                Log.e(TAG, "Error in sendRawData: " + e.getMessage(), e);
+                if (callback != null) {
+                    callback.onPrintError("Exception: " + e.getMessage());
+                }
+                return false;
+            }
+        }
+
+        /**
+         * Overloaded method to send raw data with custom timeout
+         */
+        public boolean sendRawData(byte[] data, int timeout) {
+            addDebugInfo("========== SEND RAW DATA (timeout: " + timeout + "ms) ==========");
+
+            if (!isConnected || usbConnection == null || usbEndpointOut == null) {
+                addDebugInfo("❌ Not connected");
+                return false;
+            }
+
+            try {
+                addDebugInfo("Sending " + data.length + " raw bytes");
+
+                int transferred = usbConnection.bulkTransfer(usbEndpointOut, data, data.length, timeout);
+
+                if (transferred == data.length) {
+                    addDebugInfo("✅ Successfully sent " + transferred + " bytes");
+                    return true;
+                } else {
+                    addDebugInfo("❌ Failed: sent " + transferred + " of " + data.length + " bytes");
+                    return false;
+                }
+            } catch (Exception e) {
+                addDebugInfo("❌ Exception: " + e.getMessage());
+                return false;
+            }
+        }
+
+        /**
+         * Send raw string data (converted to bytes using specified encoding)
+         */
+        public boolean sendRawString(String data, String encoding) {
+            addDebugInfo("========== SEND RAW STRING ==========");
+
+            try {
+                byte[] bytes = data.getBytes(encoding);
+                addDebugInfo("Converted string to " + bytes.length + " bytes using " + encoding);
+                return sendRawData(bytes);
+            } catch (UnsupportedEncodingException e) {
+                addDebugInfo("❌ Encoding not supported: " + encoding);
+                return false;
+            }
+        }
+
         /**
          * PCL print method
          */

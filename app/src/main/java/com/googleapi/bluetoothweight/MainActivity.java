@@ -227,6 +227,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 updatePrinterStatusInFragments();
             }
 
+
+
             @Override
             public void onPrinterDisconnected() {
                 isPrinterConnected = false;
@@ -357,6 +359,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             printerMenuHelper.tryAutoConnectLastPrinter();
         }, 1000);
 
+        setupAutoStart();
     }
     private void checkUsbPermission() {
         UsbPermissionHelper permissionHelper = new UsbPermissionHelper(this);
@@ -935,6 +938,67 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         return super.dispatchKeyEvent(event);
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_F10) {
+            showThreeFieldDialog();
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    private void showThreeFieldDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Enter Information");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Array of field names
+        String[] fieldNames = {"Field 1", "Field 2", "Field 3"};
+        EditText[] editTexts = new EditText[3];
+
+        for (int i = 0; i < 3; i++) {
+            // Add label
+            TextView label = new TextView(this);
+            label.setText(fieldNames[i] + ":");
+            label.setTextSize(16);
+            label.setPadding(0, 20, 0, 5);
+            layout.addView(label);
+
+            // Add EditText
+            EditText input = new EditText(this);
+            input.setHint("Enter " + fieldNames[i]);
+            input.setInputType(InputType.TYPE_CLASS_TEXT);
+            layout.addView(input);
+            editTexts[i] = input;
+        }
+
+        // Load saved values
+        SharedPreferences prefs = getSharedPreferences("MyAppPrefs", MODE_PRIVATE);
+        for (int i = 0; i < 3; i++) {
+            String savedValue = prefs.getString("field_" + i, "");
+            editTexts[i].setText(savedValue);
+        }
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            SharedPreferences.Editor editor = prefs.edit();
+
+            for (int i = 0; i < 3; i++) {
+                String value = editTexts[i].getText().toString().trim();
+                editor.putString("field_" + i, value);
+            }
+
+            editor.apply();
+            Toast.makeText(this, "Data saved successfully!", Toast.LENGTH_SHORT).show();
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        builder.show();
+    }
     /**
      * Toggle DFragment (Search & Print fragment) with F1 key
      */
@@ -1409,6 +1473,34 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         }
     }
+    private void setupAutoStart() {
+        // Check if app has boot completed permission
+        if (checkSelfPermission(android.Manifest.permission.RECEIVE_BOOT_COMPLETED)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{android.Manifest.permission.RECEIVE_BOOT_COMPLETED}, 100);
+        }
+
+        // Check and request auto-start permission for different manufacturers
+        if (!AutoStartPermissionHelper.isAutoStartPermissionEnabled(this)) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Enable Auto Start")
+                    .setMessage("Please enable auto-start permission for this app to work after device restart")
+                    .setPositiveButton("Open Settings", (dialog, which) -> {
+                        AutoStartPermissionHelper.requestAutoStartPermission(this);
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        }
+
+        // Disable battery optimization
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!AutoStartPermissionHelper.isBatteryOptimizationDisabled(this)) {
+                AutoStartPermissionHelper.requestDisableBatteryOptimization(this);
+            }
+        }
+    }
+
+    // Call this in onCreate()
 
     public void exitApplication() {
         final AlertDialog.Builder adb = new AlertDialog.Builder(this);
@@ -1460,7 +1552,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             autoConnectItem.setTitle(isAutoConnectEnabled.get() ?
                     "Disable Auto-Connect" : "Enable Auto-Connect");
         }
-        menu.add(0, 1001, 0, "🔌 USB Status")
+      /*  menu.add(0, 1001, 0, "🔌 USB Status")
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
         menu.add(0, 1002, 0, "🔄 Retry Connection")
@@ -1477,7 +1569,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
         menu.add(0, 1007, 0, "🔍 Show Printers")
-                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);*/
         return true;
     }
 
