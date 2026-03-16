@@ -4,6 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0D6EBD"
+    android:layout_marginEnd="@dimen/layout_end_margin"
+    android:layout_marginStart="@dimen/layout_start_margin"
     android:fillViewport="true">
 
     <LinearLayout
@@ -232,7 +234,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Total entries: 0"
-                android:textColor="#FFC107"
+                android:textColor="#000000"
+                android:background="#FFFFFF"
                 android:textSize="@dimen/normal_text_size"
                 android:layout_marginBottom="@dimen/small_padding"/>
 

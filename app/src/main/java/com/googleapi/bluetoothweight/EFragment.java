@@ -3,6 +3,9 @@ package com.googleapi.bluetoothweight;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -19,6 +22,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import java.text.SimpleDateFormat;
@@ -38,6 +42,13 @@ public class EFragment extends Fragment {
     private String currentSerialNo = "";
     private WeighmentEntry currentEntry = null;
 
+    // Focus colors
+    private static final int FOCUSED_BACKGROUND_COLOR = Color.parseColor("#FFF3E0"); // Light orange
+    private static final int FOCUSED_STROKE_COLOR = Color.parseColor("#FF9800"); // Orange
+    private static final int NORMAL_STROKE_COLOR = Color.parseColor("#DDDDDD"); // Light gray
+    private static final int FOCUSED_TEXT_COLOR = Color.parseColor("#000000"); // Deep orange
+    private static final int BUTTON_FOCUSED_BACKGROUND_COLOR = Color.parseColor("#FFE0B2"); // Lighter orange
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_e, container, false);
@@ -50,6 +61,9 @@ public class EFragment extends Fragment {
 
         // Setup listeners
         setupListeners();
+
+        // Setup focus change listeners for all interactive views
+        setupFocusListeners();
 
         // Update total entries count
         updateTotalEntriesCount();
@@ -81,6 +95,209 @@ public class EFragment extends Fragment {
 
         // Initially hide entry details
         entryDetailsLayout.setVisibility(View.GONE);
+
+        // Set initial focus states
+        resetAllFocusStates();
+    }
+
+    private void setupFocusListeners() {
+        // Search EditText focus listener
+        searchSerialEditText.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                applyEditTextFocusStyle((EditText) v);
+                // Clear focus from other views
+                clearOtherFocusStates(v);
+            } else {
+                resetEditTextStyle((EditText) v);
+            }
+        });
+
+        // Button focus listeners
+        setButtonFocusListener(btnSearch);
+        setButtonFocusListener(btnDeleteSingle);
+        setButtonFocusListener(btnDeleteAll);
+        setButtonFocusListener(btnClear);
+        setButtonFocusListener(btnClose);
+
+        // TextViews focus listeners (for navigation)
+        setTextViewFocusListener(txtSerialNo);
+        setTextViewFocusListener(txtVehicleNo);
+        setTextViewFocusListener(txtVehicleType);
+        setTextViewFocusListener(txtMaterial);
+        setTextViewFocusListener(txtParty);
+        setTextViewFocusListener(txtGross);
+        setTextViewFocusListener(txtTare);
+        setTextViewFocusListener(txtNet);
+        setTextViewFocusListener(txtFinalized);
+        setTextViewFocusListener(txtTimestamp);
+        setTextViewFocusListener(txtTotalEntries);
+
+        // Entry details layout focus listener
+        entryDetailsLayout.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                applyLayoutFocusStyle((LinearLayout) v);
+            } else {
+                resetLayoutStyle((LinearLayout) v);
+            }
+        });
+
+        // Set focusable for all views
+        entryDetailsLayout.setFocusable(true);
+        entryDetailsLayout.setFocusableInTouchMode(true);
+
+        txtSerialNo.setFocusable(true);
+        txtVehicleNo.setFocusable(true);
+        txtVehicleType.setFocusable(true);
+        txtMaterial.setFocusable(true);
+        txtParty.setFocusable(true);
+        txtGross.setFocusable(true);
+        txtTare.setFocusable(true);
+        txtNet.setFocusable(true);
+        txtFinalized.setFocusable(true);
+        txtTimestamp.setFocusable(true);
+        txtTotalEntries.setFocusable(false);
+    }
+
+    private void setButtonFocusListener(Button button) {
+        button.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                applyButtonFocusStyle((Button) v);
+                clearOtherFocusStates(v);
+            } else {
+                resetButtonStyle((Button) v);
+            }
+        });
+    }
+
+    private void setTextViewFocusListener(TextView textView) {
+        textView.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                applyTextViewFocusStyle((TextView) v);
+                clearOtherFocusStates(v);
+            } else {
+                resetTextViewStyle((TextView) v);
+            }
+        });
+    }
+
+    private void applyEditTextFocusStyle(EditText editText) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setStroke(4, FOCUSED_STROKE_COLOR);
+        drawable.setCornerRadius(8);
+        drawable.setColor(FOCUSED_BACKGROUND_COLOR);
+        editText.setBackground(drawable);
+        editText.setTextColor(FOCUSED_TEXT_COLOR);
+        editText.setHintTextColor(Color.parseColor("#FFB74D")); // Lighter orange for hint
+    }
+
+    private void resetEditTextStyle(EditText editText) {
+        // Reset to default style - you can customize this based on your default EditText style
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setStroke(2, NORMAL_STROKE_COLOR);
+        drawable.setCornerRadius(8);
+        drawable.setColor(Color.WHITE);
+        editText.setBackground(drawable);
+        editText.setTextColor(Color.BLACK);
+        editText.setHintTextColor(Color.GRAY);
+    }
+
+    private void applyButtonFocusStyle(Button button) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setStroke(4, FOCUSED_STROKE_COLOR);
+        drawable.setCornerRadius(8);
+        drawable.setColor(BUTTON_FOCUSED_BACKGROUND_COLOR);
+        button.setBackground(drawable);
+        button.setTextColor(FOCUSED_TEXT_COLOR);
+
+        // Optional: Scale up the button slightly when focused
+        button.setScaleX(1.05f);
+        button.setScaleY(1.05f);
+    }
+
+    private void resetButtonStyle(Button button) {
+        // Reset to default button style
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setStroke(2, NORMAL_STROKE_COLOR);
+        drawable.setCornerRadius(8);
+        drawable.setColor(ContextCompat.getColor(requireContext(), R.color.default_button_bg));
+        button.setBackground(drawable);
+        button.setTextColor(ContextCompat.getColor(requireContext(), R.color.default_button_text));
+
+        // Reset scale
+        button.setScaleX(1.0f);
+        button.setScaleY(1.0f);
+    }
+
+    private void applyTextViewFocusStyle(TextView textView) {
+        textView.setBackgroundColor(FOCUSED_BACKGROUND_COLOR);
+        textView.setTextColor(FOCUSED_TEXT_COLOR);
+
+        // Optional: Add padding for better visibility
+        int padding = textView.getPaddingLeft();
+        textView.setPadding(padding + 8, padding, padding + 8, padding);
+    }
+
+    private void resetTextViewStyle(TextView textView) {
+        textView.setBackgroundColor(Color.TRANSPARENT);
+        textView.setTextColor(Color.BLACK);
+
+        // Reset padding
+        int padding = textView.getPaddingLeft();
+        textView.setPadding(padding - 8, padding - 8, padding - 8, padding - 8);
+    }
+
+    private void applyLayoutFocusStyle(LinearLayout layout) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setStroke(4, FOCUSED_STROKE_COLOR);
+        drawable.setCornerRadius(8);
+        drawable.setColor(FOCUSED_BACKGROUND_COLOR);
+        layout.setBackground(drawable);
+    }
+
+    private void resetLayoutStyle(LinearLayout layout) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setStroke(2, NORMAL_STROKE_COLOR);
+        drawable.setCornerRadius(8);
+        drawable.setColor(Color.WHITE);
+        layout.setBackground(drawable);
+    }
+
+    private void clearOtherFocusStates(View focusedView) {
+        // Clear focus from other views if needed
+        if (focusedView != searchSerialEditText) {
+            resetEditTextStyle(searchSerialEditText);
+        }
+        if (focusedView != btnSearch) {
+            resetButtonStyle(btnSearch);
+        }
+        if (focusedView != btnDeleteSingle) {
+            resetButtonStyle(btnDeleteSingle);
+        }
+        if (focusedView != btnDeleteAll) {
+            resetButtonStyle(btnDeleteAll);
+        }
+        if (focusedView != btnClear) {
+            resetButtonStyle(btnClear);
+        }
+        if (focusedView != btnClose) {
+            resetButtonStyle(btnClose);
+        }
+    }
+
+    private void resetAllFocusStates() {
+        resetEditTextStyle(searchSerialEditText);
+        resetButtonStyle(btnSearch);
+        resetButtonStyle(btnDeleteSingle);
+        resetButtonStyle(btnDeleteAll);
+        resetButtonStyle(btnClear);
+        resetButtonStyle(btnClose);
+        resetLayoutStyle(entryDetailsLayout);
     }
 
     private void setupListeners() {
@@ -141,6 +358,9 @@ public class EFragment extends Fragment {
             currentEntry = entry;
             displayEntryDetails(entry);
             entryDetailsLayout.setVisibility(View.VISIBLE);
+
+            // Request focus on entry details layout for better navigation
+            entryDetailsLayout.requestFocus();
         } else {
             Toast.makeText(getActivity(), "No entry found with Serial #" + serialNo,
                     Toast.LENGTH_SHORT).show();
@@ -239,6 +459,16 @@ public class EFragment extends Fragment {
         input.setHint("Type DELETE here");
         input.setInputType(EditorInfo.TYPE_CLASS_TEXT);
         input.setPadding(50, 20, 50, 20);
+
+        // Add focus listener to the confirmation input
+        input.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                applyEditTextFocusStyle((EditText) v);
+            } else {
+                resetEditTextStyle((EditText) v);
+            }
+        });
+
         builder.setView(input);
 
         builder.setPositiveButton("Confirm Delete All", new DialogInterface.OnClickListener() {
@@ -281,6 +511,7 @@ public class EFragment extends Fragment {
         currentSerialNo = "";
         currentEntry = null;
         searchSerialEditText.requestFocus();
+        resetAllFocusStates();
     }
 
     private void updateTotalEntriesCount() {

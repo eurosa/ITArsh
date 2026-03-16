@@ -11,4 +11,16 @@
     <color name="ic_launcher_background">#0A8754</color>
     <color name="adFilling">#333333</color>
     <color name="background_dark">#F5F5F5</color>
+
+
+        <!-- Existing colors -->
+        <color name="default_button_bg">#E0E0E0</color>
+        <color name="default_button_text">#FFFFFF</color>
+
+        <!-- Focus colors -->
+        <color name="focus_background">#FFF3E0</color>
+        <color name="focus_stroke">#FF9800</color>
+        <color name="focus_text">#000000</color>
+        <color name="button_focus_background">#FFE0B2</color>
+
 </resources>
