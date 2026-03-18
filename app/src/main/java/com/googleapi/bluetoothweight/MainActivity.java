@@ -172,7 +172,13 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
     private AtomicBoolean isCleaningUp = new AtomicBoolean(false);
     private boolean isAutoConnectAfterRebootAttempted = false;
+    private static final String PREF_NAME = "PrintSettings";
+    private static final String KEY_PRINT_TYPE = "print_type";
+    private static final String KEY_PRINT_TYPE_DISPLAY = "print_type_display";
 
+    // Print type constants
+    public static final String PRINT_TYPE_PLAIN = "plain";
+    public static final String PRINT_TYPE_PRINTED = "printed";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -1072,7 +1078,106 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             showThreeFieldDialog();
             return true;
         }
+        if (keyCode == KeyEvent.KEYCODE_F6) {
+            Log.d("MainActivity", "F6 pressed - Opening print type selection dialog");
+            showPrintTypeSelectionDialog();
+            return true; // Event handled
+        }
         return super.onKeyDown(keyCode, event);
+    }
+
+    /**
+     * Show dialog with two options: Plain Print and Printed Print
+     */
+    private void showPrintTypeSelectionDialog() {
+        // Get current saved print type
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        String currentPrintType = prefs.getString(KEY_PRINT_TYPE, PRINT_TYPE_PLAIN);
+
+        // Print type options for display
+        String[] printTypes = {"Plain Print", "Printed Print"};
+
+        // Find index of current selection
+        int selectedIndex = currentPrintType.equals(PRINT_TYPE_PRINTED) ? 1 : 0;
+
+        // Build and show the dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Print Type");
+        builder.setSingleChoiceItems(printTypes, selectedIndex, (dialog, which) -> {
+            // Determine selected type
+            String selectedType = which == 0 ? PRINT_TYPE_PLAIN : PRINT_TYPE_PRINTED;
+            String displayName = printTypes[which];
+
+            // Save to SharedPreferences
+            savePrintTypePreference(selectedType, displayName);
+
+            // Show confirmation
+            String message = "Print type set to: " + displayName;
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+            Log.d("MainActivity", message);
+
+            dialog.dismiss();
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            Toast.makeText(this, "Selection cancelled", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        });
+
+        // Show the dialog
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    /**
+     * Save print type preference to SharedPreferences
+     */
+    private void savePrintTypePreference(String printType, String displayName) {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString(KEY_PRINT_TYPE, printType);
+        editor.putString(KEY_PRINT_TYPE_DISPLAY, displayName);
+        editor.apply();
+    }
+
+    /**
+     * Get current print type
+     * @return "plain" or "printed"
+     */
+    public String getCurrentPrintType() {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_PRINT_TYPE, PRINT_TYPE_PLAIN);
+    }
+
+    /**
+     * Get current print type display name
+     * @return "Plain Print" or "Printed Print"
+     */
+    public String getCurrentPrintTypeDisplay() {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+        return prefs.getString(KEY_PRINT_TYPE_DISPLAY, "Plain Print");
+    }
+
+    /**
+     * Check if Printed Print is selected
+     * @return true if Printed Print, false for Plain Print
+     */
+    public boolean isPrintedPrintSelected() {
+        return getCurrentPrintType().equals(PRINT_TYPE_PRINTED);
+    }
+
+    /**
+     * Check if Plain Print is selected
+     * @return true if Plain Print, false for Printed Print
+     */
+    public boolean isPlainPrintSelected() {
+        return getCurrentPrintType().equals(PRINT_TYPE_PLAIN);
+    }
+
+    // Other existing methods...
+    public void updatePrinterStatus(boolean connected, String printerName) {
+        this.isPrinterConnected = connected;
+       // this.connectedPrinterName = printerName;
     }
 
     private void showThreeFieldDialog() {

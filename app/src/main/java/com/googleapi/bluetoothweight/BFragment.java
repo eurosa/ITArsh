@@ -39,6 +39,7 @@ import androidx.print.PrintHelper;
 
 import com.googleapi.bluetoothweight.nokoprint.NokoPrintDirectPrinter;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
@@ -83,6 +84,10 @@ public class BFragment extends Fragment {
 
     // WiFi Printer Helper
     private WiFiPrinterHelper wifiPrinterHelper;
+
+    // Print type constants
+    private static final String PRINT_TYPE_PLAIN = "plain";
+    private static final String PRINT_TYPE_PRINTED = "printed";
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -924,102 +929,294 @@ public class BFragment extends Fragment {
         calculateNetWeight();
     }
 
-    private void printWeighmentEntry(WeighmentEntry entry) {
-        String[] options = {
-                "USB/PCL Print",           // 0
-                "Android Print Framework", // 1
-                "WiFi Print",              // 2
-                "NokoPrint App",           // 3
-                "Auto Detect Best Method"  // 4
-        };
-
-        Log.d("BFragment", "Showing print options dialog");
+    /**
+     * Automatically print to the currently connected printer without showing any popup
+     */
+    private void autoPrintToConnectedPrinter(WeighmentEntry entry) {
+        Log.d("BFragment", "autoPrintToConnectedPrinter called for entry #" + entry.getSerialNo());
 
         if (!isAdded() || getActivity() == null) {
-            Log.e("BFragment", "Fragment not attached, cannot show dialog");
+            Log.e("BFragment", "Fragment not attached");
             return;
         }
 
+        // Check if USB printer is connected
+        if (mainActivity != null && mainActivity.isPrinterConnected()) {
+            PrinterManager printerManager = mainActivity.getPrinterManager();
+            if (printerManager != null && printerManager.usbPrinterHelper != null) {
+
+                // Get print type preference from SharedPreferences (set by F6 in MainActivity)
+                SharedPreferences prefs = requireContext().getSharedPreferences("PrintSettings", Context.MODE_PRIVATE);
+                String printType = prefs.getString("print_type", PRINT_TYPE_PLAIN);
+                String printDisplayName = prefs.getString("print_type_display", "Plain Print");
+
+                Log.d("BFragment", "Print type selected: " + printDisplayName);
+
+                boolean printSuccess = false;
+
+                if (printType.equals(PRINT_TYPE_PRINTED)) {
+                    // Use formatted PCL print for "Printed Print" option
+                    Log.d("BFragment", "Using PRINTED print format (PCL)");
+                    byte[] ticketBytes = buildPCLTicketBytes(entry);
+                    if (ticketBytes != null && ticketBytes.length > 0) {
+                        printSuccess = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
+                    }
+                } else {
+                    // Use plain text print for "Plain Print" option (default)
+                    Log.d("BFragment", "Using PLAIN print format");
+                    String textContent = buildCompactPrintText(entry);
+                    if (textContent != null && !textContent.isEmpty()) {
+                        printSuccess = printerManager.usbPrinterHelper.printText(textContent);
+                    }
+                }
+
+                if (printSuccess) {
+                    Toast.makeText(getActivity(), "✅ Print sent to " + printDisplayName + " printer", Toast.LENGTH_SHORT).show();
+
+                    if (txtDisplayTwoView != null) {
+                        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                        txtDisplayTwoView.setText("PRINTED: " + entry.getSerialNo() +
+                                " | Net: " + entry.getNet() + " KG at " + sdf.format(new Date()));
+                    }
+                } else {
+                    Toast.makeText(getActivity(), "❌ Print failed - Using Android Print", Toast.LENGTH_SHORT).show();
+                    // Fallback to Android print framework
+                    printUsingAndroidPrintFramework(entry);
+                }
+            } else {
+                Toast.makeText(getActivity(), "Printer manager not available", Toast.LENGTH_SHORT).show();
+                printUsingAndroidPrintFramework(entry);
+            }
+        } else {
+            // No USB printer connected, use Android print framework
+            Toast.makeText(getActivity(), "No USB printer connected. Using Android Print...", Toast.LENGTH_SHORT).show();
+            printUsingAndroidPrintFramework(entry);
+        }
+    }
+    private byte[] buildPCLTicketBytes(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
+        String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
+        String field3 = prefs.getString("field_2", "Phone: +91 9876543210");
+
+        int pageWidth = 42;
+
+        // ESC/POS Commands
+        byte[] ESC = new byte[]{0x1B};
+        byte[] GS = new byte[]{0x1D};
+        byte[] NEW_LINE = "\n".getBytes();
+
+        // Font size commands
+        byte[] FONT_NORMAL = new byte[]{0x1B, 0x21, 0x00};  // Normal font
+        byte[] FONT_DOUBLE_HEIGHT = new byte[]{0x1B, 0x21, 0x10};  // Double height
+        byte[] FONT_DOUBLE_WIDTH = new byte[]{0x1B, 0x21, 0x20};  // Double width
+        byte[] FONT_DOUBLE_BOTH = new byte[]{0x1B, 0x21, 0x30};  // Double height & width
+
+        // Alignment commands
+        byte[] ALIGN_LEFT = new byte[]{0x1B, 0x61, 0x00};
+        byte[] ALIGN_CENTER = new byte[]{0x1B, 0x61, 0x01};
+        byte[] ALIGN_RIGHT = new byte[]{0x1B, 0x61, 0x02};
+
+        // Bold on/off
+        byte[] BOLD_ON = new byte[]{0x1B, 0x45, 0x01};
+        byte[] BOLD_OFF = new byte[]{0x1B, 0x45, 0x00};
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
         try {
-            AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-            builder.setTitle("Select Print Method")
-                    .setItems(options, (dialog, which) -> {
-                        if (!isAdded() || getActivity() == null) return;
+            // Initialize printer
+            outputStream.write(ESC);
+            outputStream.write("@".getBytes());
 
-                        ProgressDialog progressDialog = new ProgressDialog(getActivity());
-                        progressDialog.setMessage("Processing...");
-                        progressDialog.setCancelable(true);
-                        progressDialog.show();
+            // Top margin
+            outputStream.write("\n\n\n".getBytes());
 
-                        ExecutorService executor = Executors.newSingleThreadExecutor();
-                        executor.submit(() -> {
-                            boolean result = false;
-                            String method = "";
+            // ===== COMPANY NAME - Large centered text =====
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write(FONT_DOUBLE_BOTH);  // Double size
+            outputStream.write(BOLD_ON);
+            outputStream.write(field1.getBytes("UTF-8"));
+            outputStream.write(NEW_LINE);
 
-                            try {
-                                switch (which) {
-                                    case 0: // USB/PCL Print
-                                        method = "USB/PCL";
-                                        result = printWithPCL(entry);
-                                        break;
-                                    case 1: // Android Print Framework
-                                        method = "Android Print";
-                                        printUsingAndroidPrintFramework(entry);
-                                        result = true;
-                                        break;
-                                    case 2: // WiFi Print
-                                        method = "WiFi";
-                                        result = printWithWiFi(entry);
-                                        break;
-                                    case 3: // NokoPrint App
-                                        method = "NokoPrint";
-                                        result = printWithNokoPrint(entry);
-                                        break;
-                                    case 4: // Auto Detect
-                                        method = "Auto Detect";
-                                        autoDetectAndPrint(entry);
-                                        result = true;
-                                        break;
-                                }
-                            } catch (Exception e) {
-                                Log.e("BFragment", "Error in print method: " + e.getMessage());
-                                e.printStackTrace();
-                                result = false;
-                            }
+            // ===== ADDRESS - Normal centered =====
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write(FONT_NORMAL);
+            outputStream.write(field2.getBytes("UTF-8"));
+            outputStream.write(NEW_LINE);
 
-                            final boolean finalResult = result;
-                            final String finalMethod = method;
+            // ===== PHONE - Normal centered =====
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write(field3.getBytes("UTF-8"));
+            outputStream.write(NEW_LINE);
 
-                            if (getActivity() != null) {
-                                getActivity().runOnUiThread(() -> {
-                                    progressDialog.dismiss();
-                                    if (finalResult) {
-                                        Toast.makeText(getActivity(), "✅ " + finalMethod + " Successful",
-                                                Toast.LENGTH_LONG).show();
+            // Separator line
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write(repeat("=", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
 
-                                        if (txtDisplayTwoView != null) {
-                                            SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-                                            txtDisplayTwoView.setText("PRINTED: " + entry.getSerialNo() +
-                                                    " | Net: " + entry.getNet() + " KG at " + sdf.format(new Date()));
-                                        }
-                                    } else {
-                                        Toast.makeText(getActivity(), "❌ " + finalMethod + " Failed",
-                                                Toast.LENGTH_LONG).show();
-                                    }
-                                });
-                            }
-                        });
-                        executor.shutdown();
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
+            // ===== TICKET DETAILS - Left aligned =====
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write(BOLD_OFF);
+            outputStream.write(FONT_NORMAL);
 
-            Log.d("BFragment", "Print options dialog shown successfully");
+            // Ticket number and date
+            outputStream.write(String.format("%-20s %s", "Ticket #:", entry.getSerialNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("%-20s %s", "Date:", dateTime).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(repeat("-", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== VEHICLE DETAILS HEADER - Bold =====
+            outputStream.write(BOLD_ON);
+            outputStream.write("VEHICLE DETAILS:".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(BOLD_OFF);
+
+            // Vehicle details
+            outputStream.write(String.format("  %-16s %s", "Vehicle No:", entry.getVehicleNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Type:", entry.getVehicleType()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Material:", entry.getMaterial()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Party:", entry.getParty()).getBytes());
+            outputStream.write(NEW_LINE);
+
+            if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
+                outputStream.write(String.format("  %-16s %s", "Charge:", entry.getCharge()).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            outputStream.write(repeat("-", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== WEIGHT DETAILS HEADER =====
+            outputStream.write(BOLD_ON);
+            outputStream.write("WEIGHT DETAILS:".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(BOLD_OFF);
+            outputStream.write(NEW_LINE);
+
+            // Weight details with numbers right-aligned
+            outputStream.write(String.format("  %-16s %10s kg", "Gross Weight:", formatNumber(entry.getGross())).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %10s kg", "Tare Weight:", formatNumber(entry.getTare())).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // Manual tare if present
+            if (!entry.getManualTare().equals("0")) {
+                outputStream.write(String.format("  %-16s %10s kg", "Manual Tare:", formatNumber(entry.getManualTare())).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            // Separator
+            outputStream.write("  ".getBytes());
+            outputStream.write(repeat("-", pageWidth - 4).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== NET WEIGHT - Bold and larger font =====
+            outputStream.write(FONT_DOUBLE_HEIGHT);  // Double height for net weight
+            outputStream.write(BOLD_ON);
+            outputStream.write(String.format("  %-16s %10s kg", "NET WEIGHT:", formatNumber(entry.getNet())).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(FONT_NORMAL);
+            outputStream.write(BOLD_OFF);
+
+            // Bottom separator
+            outputStream.write("  ".getBytes());
+            outputStream.write(repeat("-", pageWidth - 4).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // ===== SIGNATURE AREA =====
+            outputStream.write(repeat("-", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("Operator: %s", getOperatorName()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+            outputStream.write("Signature: __________________".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // ===== FOOTER - Centered =====
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write("***** THANK YOU *****".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("*** This is computer generated ***".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("*** No signature required ***".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // Cut paper (optional)
+            outputStream.write(GS);
+            outputStream.write("V".getBytes());
+            outputStream.write(65);
+            outputStream.write(0);
+
+            return outputStream.toByteArray();
 
         } catch (Exception e) {
-            Log.e("BFragment", "Error showing print options dialog: " + e.getMessage());
             e.printStackTrace();
+            return new byte[0];
         }
+    }
+    /**
+     * Build a compact print text for plain printing
+     */
+    private String buildCompactPrintText(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
+        String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
+        String field3 = prefs.getString("field_2", "Phone: +91 9876543210");
+
+        StringBuilder ticket = new StringBuilder();
+
+        // Header with company details
+        ticket.append("\n\n");
+        ticket.append(field1).append("\n");
+        ticket.append(field2).append("\n");
+        ticket.append(field3).append("\n");
+        ticket.append("========================================\n");
+        ticket.append("TICKET #: ").append(entry.getSerialNo()).append("\n");
+        ticket.append("DATE: ").append(dateTime).append("\n");
+        ticket.append("========================================\n");
+        ticket.append("VEHICLE NO: ").append(entry.getVehicleNo()).append("\n");
+        ticket.append("VEHICLE TYPE: ").append(entry.getVehicleType()).append("\n");
+        ticket.append("MATERIAL: ").append(entry.getMaterial()).append("\n");
+        ticket.append("PARTY: ").append(entry.getParty()).append("\n");
+        if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
+            ticket.append("CHARGE: ").append(entry.getCharge()).append("\n");
+        }
+        ticket.append("----------------------------------------\n");
+        ticket.append("GROSS WEIGHT: ").append(formatNumber(entry.getGross())).append(" kg\n");
+        ticket.append("TARE WEIGHT: ").append(formatNumber(entry.getTare())).append(" kg\n");
+        ticket.append("========================================\n");
+        ticket.append("NET WEIGHT: ").append(formatNumber(entry.getNet())).append(" kg\n");
+        ticket.append("========================================\n");
+        ticket.append("OPERATOR: ").append(getOperatorName()).append("\n");
+        ticket.append("SIGNATURE: __________________\n");
+        ticket.append("\n");
+        ticket.append("         ***** THANK YOU *****\n");
+        ticket.append("   *** This is computer generated ***\n");
+        ticket.append("   *** No signature required ***\n");
+        ticket.append("\n");
+
+        return ticket.toString();
+    }
+
+    // Modified print method to use auto printing
+    private void printWeighmentEntry(WeighmentEntry entry) {
+        // Instead of showing dialog, use auto print
+        autoPrintToConnectedPrinter(entry);
     }
 
     /**
@@ -1027,7 +1224,6 @@ public class BFragment extends Fragment {
      */
     private boolean printWithPCL(WeighmentEntry entry) {
         if (mainActivity == null || !mainActivity.isPrinterConnected()) {
-            Toast.makeText(getActivity(), "USB Printer not connected", Toast.LENGTH_SHORT).show();
             return false;
         }
 
@@ -1037,15 +1233,12 @@ public class BFragment extends Fragment {
         }
 
         try {
-            String pclContent = buildPCLTicket(entry);
-            if (pclContent == null || pclContent.isEmpty()) {
+            byte[] ticketBytes = buildPCLTicketBytes(entry);
+            if (ticketBytes == null || ticketBytes.length == 0) {
                 return false;
             }
 
-            boolean result = printerManager.usbPrinterHelper.printPCL(pclContent);
-            Log.d("PRINT", "printWithPCL: Result = " + result);
-            return result;
-
+            return printerManager.usbPrinterHelper.sendRawData(ticketBytes);
         } catch (Exception e) {
             Log.e("PRINT", "printWithPCL exception: " + e.getMessage());
             return false;
@@ -1179,103 +1372,6 @@ public class BFragment extends Fragment {
     /**
      * Build PCL formatted ticket
      */
-    private String buildPCLTicket(WeighmentEntry entry) {
-        try {
-            SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
-            String dateTime = sdf.format(new Date());
-
-            String grossStr = entry.getGross().isEmpty() ? "0" : entry.getGross();
-            String tareStr = entry.getTare().isEmpty() ? "0" : entry.getTare();
-            String netStr = entry.getNet().isEmpty() ? "0" : entry.getNet();
-
-            SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
-            String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
-            String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
-            String field3 = prefs.getString("field_2", "Phone: +91 9876543210");
-
-            int lineLength = 40;
-            String centeredField1 = centerText(field1, lineLength);
-            String centeredField2 = centerText(field2, lineLength);
-            String centeredField3 = centerText(field3, lineLength);
-
-            StringBuilder pcl = new StringBuilder();
-
-            pcl.append("\u001BE");                    // Reset printer
-            pcl.append("\u001B&l1O");                  // Portrait orientation
-            pcl.append("\u001B(s10H");                  // 10 pitch
-            pcl.append("\u001B(s1Q");                   // Quality
-            pcl.append("\u001B&l6D");                   // Vertical motion index
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\r\n\r\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            pcl.append("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-
-            pcl.append(centeredField1).append("\r\n");
-            pcl.append(centeredField2).append("\r\n");
-            pcl.append(centeredField3).append("\r\n");
-            pcl.append(repeat("=", lineLength)).append("\r\n");
-            pcl.append("\r\n");
-
-            pcl.append(String.format("%-20s %s\r\n", "Ticket #:", entry.getSerialNo()));
-            pcl.append(String.format("%-20s %s\r\n", "Date:", dateTime));
-            pcl.append(repeat("-", lineLength)).append("\r\n");
-
-            pcl.append("VEHICLE DETAILS:\r\n");
-            pcl.append(String.format("  %-16s %s\r\n", "Vehicle No:", entry.getVehicleNo()));
-            pcl.append(String.format("  %-16s %s\r\n", "Type:", entry.getVehicleType()));
-            pcl.append(String.format("  %-16s %s\r\n", "Material:", entry.getMaterial()));
-            pcl.append(String.format("  %-16s %s\r\n", "Party:", entry.getParty()));
-
-            if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
-                pcl.append(String.format("  %-16s %s\r\n", "Charge:", entry.getCharge()));
-            }
-            pcl.append(repeat("-", lineLength)).append("\r\n");
-
-            pcl.append("WEIGHT DETAILS:\r\n\r\n");
-            pcl.append(String.format("  %-16s %10s kg\r\n", "Gross Weight:", formatNumber(grossStr)));
-            pcl.append(String.format("  %-16s %10s kg\r\n", "Tare Weight:", formatNumber(tareStr)));
-
-            pcl.append("  " + repeat("-", lineLength - 4)).append("\r\n");
-            pcl.append(String.format("  %-16s %10s kg\r\n", "NET WEIGHT:", formatNumber(netStr)));
-            pcl.append("  " + repeat("-", lineLength - 4)).append("\r\n\r\n");
-
-            pcl.append(repeat("-", lineLength)).append("\r\n");
-            pcl.append(String.format("Operator: %s\r\n", getOperatorName()));
-            pcl.append("\r\n");
-            pcl.append(String.format("Signature: %s\r\n", "__________________"));
-            pcl.append("\r\n");
-
-            pcl.append(centerText("***** THANK YOU *****", lineLength)).append("\r\n");
-            pcl.append(centerText("*** This is computer generated ***", lineLength)).append("\r\n");
-            pcl.append(centerText("*** No signature required ***", lineLength)).append("\r\n");
-            pcl.append("\r\n");
-            pcl.append("\u001B&l0H");                   // Form feed
-
-            return pcl.toString();
-
-        } catch (Exception e) {
-            Log.e("PRINT", "buildPCLTicket exception: " + e.getMessage());
-            return buildPrintText(entry);
-        }
-    }
 
     /**
      * Print using Android's built-in print framework
@@ -1297,6 +1393,12 @@ public class BFragment extends Fragment {
 
             Toast.makeText(getActivity(), "Print job created for Entry #" + entry.getSerialNo(),
                     Toast.LENGTH_SHORT).show();
+
+            if (txtDisplayTwoView != null) {
+                SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+                txtDisplayTwoView.setText("PRINTED: " + entry.getSerialNo() +
+                        " | Net: " + entry.getNet() + " KG at " + sdf.format(new Date()));
+            }
 
         } catch (Exception e) {
             Log.e("BFragment", "Error in Android printing", e);
@@ -1559,8 +1661,8 @@ public class BFragment extends Fragment {
                 isEntryFinalized = true;
                 setFormFieldsEnabled(false);
 
-                // Now show print options
-                printWeighmentEntry(entry);
+                // Now print using auto print (no dialog)
+                autoPrintToConnectedPrinter(entry);
 
                 // Focus on search field for next operation
                 searchSerialEditText.requestFocus();
