@@ -838,11 +838,17 @@ public class AFragment extends Fragment {
                     }
                 } else {
                     // Use plain text print for "Plain Print" option (default)
-                    Log.d("AFragment", "Using PLAIN print format");
+                   /* Log.d("AFragment", "Using PLAIN print format");
                     String textContent = buildCompactPrintText(entry);
                     if (textContent != null && !textContent.isEmpty()) {
                         printSuccess = printerManager.usbPrinterHelper.printText(textContent);
+                    }*/
+
+                    byte[] ticketBytes = buildPCLTicketBytesPlain(entry);
+                    if (ticketBytes != null && ticketBytes.length > 0) {
+                        printSuccess = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
                     }
+
                 }
 
                 if (printSuccess) {
@@ -1359,6 +1365,180 @@ public class AFragment extends Fragment {
                 "*** This is computer generated ***<br/>" +
                 "*** No signature required ***" +
                 "</div></body></html>";
+    }
+
+    private byte[] buildPCLTicketBytesPlain(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
+        String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
+        String field3 = prefs.getString("field_2", "Phone: +91 9876543210");
+
+        int pageWidth = 42;
+
+        // ESC/POS Commands
+        byte[] ESC = new byte[]{0x1B};
+        byte[] GS = new byte[]{0x1D};
+        byte[] NEW_LINE = "\n".getBytes();
+
+        // Font size commands
+        byte[] FONT_NORMAL = new byte[]{0x1B, 0x21, 0x00};  // Normal font
+        byte[] FONT_DOUBLE_HEIGHT = new byte[]{0x1B, 0x21, 0x10};  // Double height
+        byte[] FONT_DOUBLE_WIDTH = new byte[]{0x1B, 0x21, 0x20};  // Double width
+        byte[] FONT_DOUBLE_BOTH = new byte[]{0x1B, 0x21, 0x30};  // Double height & width
+
+        // Alignment commands
+        byte[] ALIGN_LEFT = new byte[]{0x1B, 0x61, 0x00};
+        byte[] ALIGN_CENTER = new byte[]{0x1B, 0x61, 0x01};
+        byte[] ALIGN_RIGHT = new byte[]{0x1B, 0x61, 0x02};
+
+        // Bold on/off
+        byte[] BOLD_ON = new byte[]{0x1B, 0x45, 0x01};
+        byte[] BOLD_OFF = new byte[]{0x1B, 0x45, 0x00};
+
+        // Line feed commands (for precise positioning)
+        byte[] LINE_FEED_1 = new byte[]{0x1B, 0x64, 0x01}; // Feed 1 line
+        byte[] LINE_FEED_2 = new byte[]{0x1B, 0x64, 0x02}; // Feed 2 lines
+
+        // For thermal printers, each line is typically about 4-4.5mm
+        // 30mm ≈ 7-8 lines
+        // 150mm ≈ 35-37 lines from top of paper
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        try {
+            // Initialize printer
+            outputStream.write(ESC);
+            outputStream.write("@".getBytes());
+
+            // === POSITION 1: 30mm from top (for serial no and date) ===
+            // Move to 30mm from top (approximately 7-8 lines)
+            outputStream.write(ESC);
+            outputStream.write(new byte[]{0x64, 0x07}); // Feed 7 lines (≈28-30mm)
+
+
+
+            // Ticket number and date at 30mm position
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write(BOLD_ON);
+            outputStream.write(("TICKET NO: " + entry.getSerialNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(("DATE: " + dateTime).getBytes());
+            outputStream.write(BOLD_OFF);
+            outputStream.write(NEW_LINE);
+
+
+            // Vehicle details (still at same 30mm position or slightly below)
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write(("Vehicle No: " + entry.getVehicleNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(("Vehicle Type: " + entry.getVehicleType()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(("Material: " + entry.getMaterial()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(("Party: " + entry.getParty()).getBytes());
+            outputStream.write(NEW_LINE);
+
+            if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
+                outputStream.write(("Charge: " + entry.getCharge()).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            // === POSITION 2: 150mm from top ===
+            // Calculate lines needed: Current position is about 30mm + 10 lines (≈70mm)
+            // Need to move additional 80mm (≈20 lines)
+            outputStream.write(ESC);
+            outputStream.write(new byte[]{0x64, 0x14}); // Feed 20 lines (≈80mm)
+
+            // Add a separator line
+            outputStream.write("========================================".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write(BOLD_ON);
+            outputStream.write("WEIGHT DETAILS".getBytes());
+            outputStream.write(BOLD_OFF);
+            outputStream.write(NEW_LINE);
+            outputStream.write("========================================".getBytes());
+            outputStream.write(NEW_LINE);
+
+            // Weight details with proper formatting
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write(String.format("%-15s %10s kg", "GROSS:", formatNumber(entry.getGross())).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("%-15s %10s kg", "TARE:", formatNumber(entry.getTare())).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // Manual tare if present
+            if (!entry.getManualTare().equals("0")) {
+                outputStream.write(String.format("%-15s %10s kg", "MANUAL TARE:", formatNumber(entry.getManualTare())).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            outputStream.write("----------------------------------------".getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== NET WEIGHT - Bold and larger font =====
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write(FONT_DOUBLE_BOTH);  // Double height & width for net weight
+            outputStream.write(BOLD_ON);
+            outputStream.write(String.format("NET: %s kg", formatNumber1(entry.getNet())).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(FONT_NORMAL);
+            outputStream.write(BOLD_OFF);
+
+            // Add some space before footer
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // Footer with operator details (matching the image)
+            outputStream.write(ALIGN_LEFT);
+            outputStream.write("----------------------------------------".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("OPERATOR SIGN: ___________".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("KEY NO: ___________".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(("TIME: " + dateTime.substring(dateTime.indexOf(" ") + 1)).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // Service info from image
+            outputStream.write("Service: 24/7 Service".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("Mobile: 7906353983, 8800684273".getBytes());
+            outputStream.write(NEW_LINE);
+
+            // Cut paper
+            outputStream.write(GS);
+            outputStream.write("V".getBytes());
+            outputStream.write(65);
+            outputStream.write(0);
+
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+
+    private String formatNumber1(String number) {
+        try {
+            if (number == null || number.isEmpty()) return "0";
+            // Remove any non-numeric characters except decimal point
+            String cleanNumber = number.replaceAll("[^\\d.]", "");
+            if (cleanNumber.isEmpty()) return "0";
+
+            double value = Double.parseDouble(cleanNumber);
+            if (value == (long) value) {
+                return String.format("%d", (long) value);
+            } else {
+                return String.format("%.2f", value);
+            }
+        } catch (NumberFormatException e) {
+            return number; // Return original if parsing fails
+        }
     }
 
     private byte[] buildPCLTicketBytes(WeighmentEntry entry) {

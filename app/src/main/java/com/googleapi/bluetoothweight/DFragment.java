@@ -403,12 +403,12 @@ public class DFragment extends Fragment {
             } else {
                 // Use plain text print
                 Log.d("DFragment", "Using PLAIN print format");
-                String textContent = buildCompactPrintText(entry);
-                if (textContent != null && !textContent.isEmpty()) {
-                    Log.d("DFragment", "Sending text to printer:\n" + textContent);
-                    printResult = printerManager.usbPrinterHelper.printText(textContent);
+                byte[] ticketBytes = buildDotMatrixTicket(entry);
+                if (ticketBytes != null && ticketBytes.length > 0) {
+                    Log.d("DFragment", "Sending " + ticketBytes.length + " bytes to printer");
+                    printResult = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
                 } else {
-                    Log.e("DFragment", "textContent is empty");
+                    Log.e("DFragment", "ticketBytes is empty");
                     return false;
                 }
             }
@@ -568,6 +568,205 @@ public class DFragment extends Fragment {
         return directUsbPrint(entry, true);
     }
 
+    private byte[] buildDotMatrixTicket(WeighmentEntry entry) {
+
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+
+        String date = dateFormat.format(new Date());
+        String time = timeFormat.format(new Date());
+
+        int pageWidth = 76;     // Full width
+        int leftWidth = 38;     // Left column
+        int rightWidth = 38;    // Right column
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        try {
+
+            // ===== TOP MARGIN (adjust as per paper feed) =====
+            outputStream.write("\n\n\n".getBytes());
+            outputStream.write("\n\n\n".getBytes());
+
+
+
+
+
+            // ===== VEHICLE DETAILS (LEFT + RIGHT BOXES) =====
+            outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
+                    "                 " + date,
+                    "                 " + entry.getSerialNo()).getBytes());
+            outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
+                    "            " + entry.getVehicleNo(),
+                    "             " + entry.getSerialNo()).getBytes());
+
+            outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
+                    "              " + entry.getMaterial(),
+                    "              " + dateTime.substring(11)).getBytes());
+
+            // GROSS
+            outputStream.write(centerText("                       " + formatNumber(entry.getGross()) + " kg", pageWidth).getBytes());
+            outputStream.write("\n\n".getBytes());
+            //TARE
+            outputStream.write(centerText("                       " + formatNumber(entry.getTare()) + " kg", pageWidth).getBytes());
+            outputStream.write("\n".getBytes());
+
+
+            outputStream.write("\n".getBytes());
+
+            // Net (highlight using spacing)
+            outputStream.write(centerText("                        " + formatNumber(entry.getNet()) + " kg", pageWidth).getBytes());
+            outputStream.write("\n".getBytes());
+
+
+
+
+
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+
+    private byte[] buildPCLTicketBytesPlain(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
+        String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
+        String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
+        String field3 = prefs.getString("field_2", "Phone: +91 9876543210");
+
+        int pageWidth = 42;
+
+        // ESC/POS Commands
+        byte[] ESC = new byte[]{0x1B};
+        byte[] GS = new byte[]{0x1D};
+        byte[] NEW_LINE = "\n".getBytes();
+
+        // Font size commands
+        byte[] FONT_NORMAL = new byte[]{0x1B, 0x21, 0x00};
+        byte[] FONT_DOUBLE_HEIGHT = new byte[]{0x1B, 0x21, 0x10};
+        byte[] FONT_DOUBLE_WIDTH = new byte[]{0x1B, 0x21, 0x20};
+        byte[] FONT_DOUBLE_BOTH = new byte[]{0x1B, 0x21, 0x30};
+
+        // Alignment commands
+        byte[] ALIGN_LEFT = new byte[]{0x1B, 0x61, 0x00};
+        byte[] ALIGN_CENTER = new byte[]{0x1B, 0x61, 0x01};
+        byte[] ALIGN_RIGHT = new byte[]{0x1B, 0x61, 0x02};
+
+        // Bold on/off
+        byte[] BOLD_ON = new byte[]{0x1B, 0x45, 0x01};
+        byte[] BOLD_OFF = new byte[]{0x1B, 0x45, 0x00};
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        try {
+            // Initialize printer
+            outputStream.write(ESC);
+            outputStream.write("@".getBytes());
+
+            // Top margin
+            outputStream.write("\n\n\n".getBytes());
+
+
+            // Ticket number and date
+            outputStream.write(String.format("%20s", entry.getSerialNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("%20s", dateTime).getBytes());
+            outputStream.write(NEW_LINE);
+
+
+
+
+            // Vehicle details
+            outputStream.write(String.format("  %-16s %s", "Vehicle No:", entry.getVehicleNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Type:", entry.getVehicleType()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Material:", entry.getMaterial()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Party:", entry.getParty()).getBytes());
+            outputStream.write(NEW_LINE);
+
+            if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
+                outputStream.write(String.format("  %-16s %s", "Charge:", entry.getCharge()).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            outputStream.write(repeat("-", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== WEIGHT DETAILS HEADER =====
+            outputStream.write(BOLD_ON);
+            outputStream.write("WEIGHT DETAILS:".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(BOLD_OFF);
+            outputStream.write(NEW_LINE);
+
+            // Weight details with numbers right-aligned
+            outputStream.write(String.format("  %-16s %10s kg", "Gross Weight:", formatNumber(entry.getGross())).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %10s kg", "Tare Weight:", formatNumber(entry.getTare())).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // Separator
+            outputStream.write("  ".getBytes());
+            outputStream.write(repeat("-", pageWidth - 4).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== NET WEIGHT - Bold and larger font =====
+            outputStream.write(FONT_DOUBLE_HEIGHT);
+            outputStream.write(BOLD_ON);
+            outputStream.write(String.format("  %-16s %10s kg", "NET WEIGHT:", formatNumber(entry.getNet())).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(FONT_NORMAL);
+            outputStream.write(BOLD_OFF);
+
+            // Bottom separator
+            outputStream.write("  ".getBytes());
+            outputStream.write(repeat("-", pageWidth - 4).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // ===== SIGNATURE AREA =====
+            outputStream.write(repeat("-", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("Operator: %s", getOperatorName()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+            outputStream.write("Signature: __________________".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // ===== FOOTER - Centered =====
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write("***** THANK YOU *****".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("*** This is computer generated ***".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write("*** No signature required ***".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // Cut paper (optional)
+            outputStream.write(GS);
+            outputStream.write("V".getBytes());
+            outputStream.write(65);
+            outputStream.write(0);
+
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
     private byte[] buildPCLTicketBytes(WeighmentEntry entry) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());
