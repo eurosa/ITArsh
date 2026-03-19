@@ -39,6 +39,7 @@ import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -79,7 +80,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends BaseActivity implements NavigationView.OnNavigationItemSelectedListener, BluetoothConnectionManager.ConnectionCallback {
     private Button buttonT, buttonG;
+    private boolean isAdminMode = false;
     private UsbPermissionReceiver usbPermissionReceiver;
+    private PasswordManager passwordManager;
+    private boolean isUserLoggedIn = false;
+    private String currentUser = null;
     private boolean isWaitingForPermission = false;
     private Fragment visibleFragment = null;
     private long lastClockUpdate = 0;
@@ -200,8 +205,91 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         // Call the missing method
         setupDelayedAutoStart();
-    }
 
+
+        // Initialize PasswordManager
+        passwordManager = new PasswordManager(this);
+        passwordManager.setAuthListener(new PasswordManager.AuthListener() {
+            @Override
+            public void onPasswordResetSuccess() {
+
+            }
+
+            @Override
+            public void onPasswordResetFailed(String reason) {
+
+            }
+
+            @Override
+            public void onUserLoginSuccess(String username) {
+                isUserLoggedIn = true;
+                currentUser = username;
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "Welcome " + username + "! Press F10 for settings", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onUserLoginFailed() {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "Login failed", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onUserRegistered(String username) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "Registration request sent for " + username, Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onUserApproved(String username) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "User " + username + " approved! They can now login.", Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @Override
+            public void onUserRejected(String username) {
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "User " + username + " rejected", Toast.LENGTH_SHORT).show();
+                });
+            }
+
+            @Override
+            public void onSessionExpired() {
+                isUserLoggedIn = false;
+                currentUser = null;
+                runOnUiThread(() -> {
+                    Toast.makeText(MainActivity.this, "Session expired. Please login again.", Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+
+        // Check if already logged in with valid session
+        if (passwordManager.isUserLoggedIn()) {
+            isUserLoggedIn = true;
+            currentUser = passwordManager.getCurrentUser();
+            Toast.makeText(this, "Welcome back " + currentUser, Toast.LENGTH_SHORT).show();
+        }
+
+        if (passwordManager != null) {
+        //checkAndSetupSecurity();
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == 1001) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "✅ Storage permission granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "❌ Storage permission denied", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
     // Add this missing method
     private void setupDelayedAutoStart() {
         // Check permission after a short delay
@@ -1030,17 +1118,19 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             }
 
             if (keyCode == KeyEvent.KEYCODE_F5) {
-                toggleReportFragment();
+                showAdminLoginForF5();
                 return true;
             }
 
             if (keyCode == KeyEvent.KEYCODE_F1) {
-                toggleDFragment();
+                toggleDFragment(); // Open fragment in admin mode
+                //showAccessTypeDialogF1(); // Show dialog to choose access type
                 return true;
             }
 
             if (keyCode == KeyEvent.KEYCODE_F3) {
-                toggleEFragment();
+
+                showAdminLoginForF3();
                 return true;
             }
 
@@ -1050,21 +1140,31 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
                     aFragment.performMButtonAction();
                     return true;
                 }
+                     //showAdminLoginForF4();
+
                 return true;
             }
 
             if (keyCode == KeyEvent.KEYCODE_F2) {
-                openMasterDataDialog();
+                if (keyCode == KeyEvent.KEYCODE_F2) {
+                    showAdminLoginForMasterData();
+                    return true;
+                }
                 return true;
             }
 
             if ((keyCode == KeyEvent.KEYCODE_1 || keyCode == KeyEvent.KEYCODE_NUMPAD_1) && !isEditTextFocused) {
+
+               // showAccessTypeDialog1(); // Show dialog to choose access type
                 toggleFragment(buttonA, aFragment, FragmentState.FRAGMENT_A, "#FFA500");
                 return true;
             }
 
             if ((keyCode == KeyEvent.KEYCODE_2 || keyCode == KeyEvent.KEYCODE_NUMPAD_2) && !isEditTextFocused) {
+
                 toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
+                // showAccessTypeDialog2();
+
                 return true;
             }
         }
@@ -1072,20 +1172,1489 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         return super.dispatchKeyEvent(event);
     }
 
+    /**
+     * Show dialog to choose access type (User or Admin)
+     */
+    private void showAccessTypeDialogF1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Access Type");
+        builder.setMessage("Choose how you want to access:");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        Button userButton = new Button(this);
+        userButton.setText("User Access");
+        userButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        userButton.setTextColor(Color.WHITE);
+        userButton.setPadding(30, 15, 30, 15);
+        userButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(userButton);
+
+        // Add some space between buttons
+        TextView spacer = new TextView(this);
+        spacer.setText("");
+        spacer.setHeight(20);
+        layout.addView(spacer);
+
+        Button adminButton = new Button(this);
+        adminButton.setText("Admin Access");
+        adminButton.setBackgroundColor(Color.parseColor("#2196F3"));
+        adminButton.setTextColor(Color.WHITE);
+        adminButton.setPadding(30, 15, 30, 15);
+        adminButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(adminButton);
+
+        builder.setView(layout);
+
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Set click listeners after dialog is created
+        userButton.setOnClickListener(v -> {
+            dialog.dismiss(); // Now dialog is in scope
+            handleUserAccessF1();
+        });
+
+        adminButton.setOnClickListener(v -> {
+            dialog.dismiss(); // Now dialog is in scope
+            showAdminLoginForF1();
+        });
+    }
+
+    private void showAccessTypeDialog2() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Access Type");
+        builder.setMessage("Choose how you want to access:");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        Button userButton = new Button(this);
+        userButton.setText("User Access");
+        userButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        userButton.setTextColor(Color.WHITE);
+        userButton.setPadding(30, 15, 30, 15);
+        userButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(userButton);
+
+        // Add some space between buttons
+        TextView spacer = new TextView(this);
+        spacer.setText("");
+        spacer.setHeight(20);
+        layout.addView(spacer);
+
+        Button adminButton = new Button(this);
+        adminButton.setText("Admin Access");
+        adminButton.setBackgroundColor(Color.parseColor("#2196F3"));
+        adminButton.setTextColor(Color.WHITE);
+        adminButton.setPadding(30, 15, 30, 15);
+        adminButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(adminButton);
+
+        builder.setView(layout);
+
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Set click listeners after dialog is created
+        userButton.setOnClickListener(v -> {
+            dialog.dismiss(); // Now dialog is in scope
+            handleUserAccess2();
+        });
+
+        adminButton.setOnClickListener(v -> {
+            dialog.dismiss(); // Now dialog is in scope
+            showAdminLoginFor2();
+        });
+    }
+    private void showAccessTypeDialog1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Access Type");
+        builder.setMessage("Choose how you want to access:");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        Button userButton = new Button(this);
+        userButton.setText("User Access");
+        userButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        userButton.setTextColor(Color.WHITE);
+        userButton.setPadding(30, 15, 30, 15);
+        userButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(userButton);
+
+        // Add some space between buttons
+        TextView spacer = new TextView(this);
+        spacer.setText("");
+        spacer.setHeight(20);
+        layout.addView(spacer);
+
+        Button adminButton = new Button(this);
+        adminButton.setText("Admin Access");
+        adminButton.setBackgroundColor(Color.parseColor("#2196F3"));
+        adminButton.setTextColor(Color.WHITE);
+        adminButton.setPadding(30, 15, 30, 15);
+        adminButton.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        layout.addView(adminButton);
+
+        builder.setView(layout);
+
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Set click listeners after dialog is created
+        userButton.setOnClickListener(v -> {
+            dialog.dismiss(); // Now dialog is in scope
+            handleUserAccess1();
+        });
+
+        adminButton.setOnClickListener(v -> {
+            dialog.dismiss(); // Now dialog is in scope
+            showAdminLoginFor1();
+        });
+    }
+
+    /**
+     * Handle user access (existing user login)
+     */
+    private void handleUserAccessF1() {
+        if (isUserLoggedIn) {
+            // Already logged in, open user fragment directly
+            toggleDFragment();
+        } else {
+            // Show login dialog with option to register
+            showLoginOrRegisterDialogF1();
+        }
+    }
+    private void handleUserAccess1() {
+        if (isUserLoggedIn) {
+            // Already logged in, open user fragment directly
+            toggleFragment(buttonA, aFragment, FragmentState.FRAGMENT_A, "#FFA500");
+        } else {
+            // Show login dialog with option to register
+            showLoginOrRegisterDialog1();
+        }
+    }
+    private void handleUserAccess2() {
+        if (isUserLoggedIn) {
+            // Already logged in, open user fragment directly
+            toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
+        } else {
+            // Show login dialog with option to register
+            showLoginOrRegisterDialog2();
+        }
+    }
+
+    /**
+     * Show admin login for F1 access
+     */
+    private void showAdminLoginFor1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access admin panel");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        loginButton.setPadding(30, 15, 30, 15);
+
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+        cancelButton.setPadding(30, 15, 30, 15);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                // Set admin mode flag if needed
+                isAdminMode = true;
+                toggleFragment(buttonA, aFragment, FragmentState.FRAGMENT_A, "#FFA500");
+
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+    private void showAdminLoginFor2() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access admin panel");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        loginButton.setPadding(30, 15, 30, 15);
+
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+        cancelButton.setPadding(30, 15, 30, 15);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                // Set admin mode flag if needed
+                isAdminMode = true;
+                toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
+
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+    private void showAdminLoginForF1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access admin panel");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        loginButton.setPadding(30, 15, 30, 15);
+
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+        cancelButton.setPadding(30, 15, 30, 15);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                // Set admin mode flag if needed
+                isAdminMode = true;
+                toggleDFragment(); // Open fragment in admin mode
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+
+    private void showAdminLoginForF5() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access Master Data");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                toggleReportFragment();
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+    /**
+     * Show admin login before opening Master Data
+     */
+    private void showAdminLoginForF3() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access Master Data");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                toggleEFragment();
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+
+    private void showAdminLoginForMasterData() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access Master Data");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                openMasterDataDialog(); // Open master data after successful login
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+    /**
+     * Handle F2 key press - Admin login for Master Data access
+     */
+
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
+        // F10 for settings dialog (requires user login)
         if (keyCode == KeyEvent.KEYCODE_F10) {
-            showThreeFieldDialog();
+
+            showAdminLoginForF10();
             return true;
         }
         if (keyCode == KeyEvent.KEYCODE_F6) {
             Log.d("MainActivity", "F6 pressed - Opening print type selection dialog");
-            showPrintTypeSelectionDialog();
+
+            showAdminLoginForF6();
             return true; // Event handled
         }
+
+
+        if (keyCode == KeyEvent.KEYCODE_F9) {
+            if (passwordManager != null) {
+                passwordManager.showAdminPasswordResetOptions();
+            }
+            return true;
+        }
+
+
         return super.onKeyDown(keyCode, event);
     }
 
+    /**
+     * Handle F10 press - shows login if needed, then settings
+     */
+
+// Optional: Add setup security during first run
+    // Optional: Add setup security during first run
+    private void checkAndSetupSecurity() {
+        if (passwordManager != null) {
+            // Check if security questions are set
+            boolean securityQuestionsSet = checkIfSecurityQuestionsSet();
+
+            // If no security questions set and it's first time, show setup
+            if (!securityQuestionsSet && isFirstTimeAppUse()) {
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    passwordManager.showSetupSecurityDialog();
+                }, 2000);
+            }
+        }
+    }
+
+    /**
+     * Check if security questions are set
+     */
+    private boolean checkIfSecurityQuestionsSet() {
+        SharedPreferences securityPrefs = getSharedPreferences("SecurityPrefs", MODE_PRIVATE);
+        return securityPrefs.contains("security_question_1") &&
+                securityPrefs.contains("security_answer_1");
+    }
+
+    /**
+     * Check if this is first time app use
+     */
+    private boolean isFirstTimeAppUse() {
+        SharedPreferences prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE);
+        boolean isFirstTime = prefs.getBoolean("is_first_time", true);
+
+        if (isFirstTime) {
+            prefs.edit().putBoolean("is_first_time", false).apply();
+        }
+
+        return isFirstTime;
+    }
+    private void showAdminLoginForF10() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access Master Data");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                showThreeFieldDialog();
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+
+    private void showAdminLoginForF6() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Admin Login Required");
+        builder.setMessage("Enter admin credentials to access Master Data");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter admin username");
+        usernameInput.setText("admin");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter admin password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Style buttons
+        loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        loginButton.setTextColor(Color.WHITE);
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            // Check against fixed admin credentials
+            if (username.equals("admin") && password.equals("admin@123")) {
+                dialog.dismiss();
+                showPrintTypeSelectionDialog();
+            } else {
+                Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+
+    /**
+     * Show dialog with login/register options
+     */
+    private void showLoginOrRegisterDialogF1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Access Required");
+        builder.setMessage("You need to login to access F10 settings");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        TextView infoText = new TextView(this);
+        infoText.setText("Choose an option:");
+        infoText.setTextSize(16);
+        infoText.setPadding(0, 0, 0, 20);
+        layout.addView(infoText);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", (dialog, which) -> {
+            showLoginDialogF1();
+        });
+
+        builder.setNegativeButton("Register", (dialog, which) -> {
+            passwordManager.showRegistrationDialog();
+        });
+
+        builder.setNeutralButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button registerButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+
+        // Style buttons
+        loginButton.setBackgroundColor(getColor(android.R.color.holo_green_dark));
+        loginButton.setTextColor(android.graphics.Color.WHITE);
+
+        registerButton.setBackgroundColor(getColor(android.R.color.holo_orange_dark));
+        registerButton.setTextColor(android.graphics.Color.WHITE);
+
+        cancelButton.setBackgroundColor(getColor(android.R.color.darker_gray));
+        cancelButton.setTextColor(android.graphics.Color.WHITE);
+    }
+
+    private void showLoginOrRegisterDialog1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Access Required");
+
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        TextView infoText = new TextView(this);
+        infoText.setText("Choose an option:");
+        infoText.setTextSize(16);
+        infoText.setPadding(0, 0, 0, 20);
+        layout.addView(infoText);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", (dialog, which) -> {
+            showLoginDialog1();
+        });
+
+        builder.setNegativeButton("Register", (dialog, which) -> {
+            passwordManager.showRegistrationDialog();
+        });
+
+        builder.setNeutralButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button registerButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+
+        // Style buttons
+        loginButton.setBackgroundColor(getColor(android.R.color.holo_green_dark));
+        loginButton.setTextColor(android.graphics.Color.WHITE);
+
+        registerButton.setBackgroundColor(getColor(android.R.color.holo_orange_dark));
+        registerButton.setTextColor(android.graphics.Color.WHITE);
+
+        cancelButton.setBackgroundColor(getColor(android.R.color.darker_gray));
+        cancelButton.setTextColor(android.graphics.Color.WHITE);
+    }
+    private void showLoginOrRegisterDialog2() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Access Required");
+
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        TextView infoText = new TextView(this);
+        infoText.setText("Choose an option:");
+        infoText.setTextSize(16);
+        infoText.setPadding(0, 0, 0, 20);
+        layout.addView(infoText);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", (dialog, which) -> {
+            showLoginDialog2();
+        });
+
+        builder.setNegativeButton("Register", (dialog, which) -> {
+            passwordManager.showRegistrationDialog();
+        });
+
+        builder.setNeutralButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button registerButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+
+        // Style buttons
+        loginButton.setBackgroundColor(getColor(android.R.color.holo_green_dark));
+        loginButton.setTextColor(android.graphics.Color.WHITE);
+
+        registerButton.setBackgroundColor(getColor(android.R.color.holo_orange_dark));
+        registerButton.setTextColor(android.graphics.Color.WHITE);
+
+        cancelButton.setBackgroundColor(getColor(android.R.color.darker_gray));
+        cancelButton.setTextColor(android.graphics.Color.WHITE);
+    }
+    public void showLoginDialogF1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("User Login");
+        builder.setMessage("Please enter your credentials");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter username");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        // Remember me
+        CheckBox rememberMe = new CheckBox(this);
+        rememberMe.setText("Remember me for 8 hours");
+        rememberMe.setPadding(0, 20, 0, 10);
+        layout.addView(rememberMe);
+
+        // Register link
+        TextView registerLink = new TextView(this);
+        registerLink.setText("Don't have an account? Register");
+        registerLink.setTextColor(Color.BLUE);
+        registerLink.setPadding(0, 10, 0, 10);
+        layout.addView(registerLink);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Set register link click listener after dialog is created
+        registerLink.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (passwordManager != null) {
+                passwordManager.showRegistrationDialog();
+            }
+        });
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        styleButton(loginButton, "Login", "#4CAF50");
+        styleButton(cancelButton, "Cancel", "#F44336");
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            if (username.isEmpty()) {
+                Toast.makeText(this, "Please enter username", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (password.isEmpty()) {
+                Toast.makeText(this, "Please enter password", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (validateUserLogin(username, password)) {
+                if (rememberMe.isChecked()) {
+                    // Save session with timestamp
+                    getSharedPreferences("PasswordManager", MODE_PRIVATE)
+                            .edit()
+                            .putString("logged_in_user", username)
+                            .putLong("login_time", System.currentTimeMillis())
+                            .apply();
+                }
+
+                Toast.makeText(this, "Login successful! Welcome " + username, Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+
+                // Handle successful login - open appropriate fragment
+                isUserLoggedIn = true;
+                currentUser = username;
+                isAdminMode = false;
+
+                // You can open a default fragment here
+                toggleDFragment();
+
+            } else {
+                Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+    public void showLoginDialog1() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("User Login");
+        builder.setMessage("Please enter your credentials");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter username");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        // Remember me
+        CheckBox rememberMe = new CheckBox(this);
+        rememberMe.setText("Remember me for 8 hours");
+        rememberMe.setPadding(0, 20, 0, 10);
+        layout.addView(rememberMe);
+
+        // Register link
+        TextView registerLink = new TextView(this);
+        registerLink.setText("Don't have an account? Register");
+        registerLink.setTextColor(Color.BLUE);
+        registerLink.setPadding(0, 10, 0, 10);
+        layout.addView(registerLink);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Set register link click listener after dialog is created
+        registerLink.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (passwordManager != null) {
+                passwordManager.showRegistrationDialog();
+            }
+        });
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        styleButton(loginButton, "Login", "#4CAF50");
+        styleButton(cancelButton, "Cancel", "#F44336");
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            if (username.isEmpty()) {
+                Toast.makeText(this, "Please enter username", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (password.isEmpty()) {
+                Toast.makeText(this, "Please enter password", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (validateUserLogin(username, password)) {
+                if (rememberMe.isChecked()) {
+                    // Save session with timestamp
+                    getSharedPreferences("PasswordManager", MODE_PRIVATE)
+                            .edit()
+                            .putString("logged_in_user", username)
+                            .putLong("login_time", System.currentTimeMillis())
+                            .apply();
+                }
+
+                Toast.makeText(this, "Login successful! Welcome " + username, Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+
+                // Handle successful login - open appropriate fragment
+                isUserLoggedIn = true;
+                currentUser = username;
+                isAdminMode = false;
+
+                // You can open a default fragment here
+                toggleFragment(buttonA, aFragment, FragmentState.FRAGMENT_A, "#FFA500");
+
+            } else {
+                Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+    public void showLoginDialog2() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("User Login");
+        builder.setMessage("Please enter your credentials");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        // Username field
+        TextView usernameLabel = new TextView(this);
+        usernameLabel.setText("Username:");
+        usernameLabel.setTextSize(16);
+        usernameLabel.setPadding(0, 10, 0, 5);
+        layout.addView(usernameLabel);
+
+        EditText usernameInput = new EditText(this);
+        usernameInput.setHint("Enter username");
+        usernameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        usernameInput.setId(View.generateViewId());
+        layout.addView(usernameInput);
+
+        // Password field
+        TextView passwordLabel = new TextView(this);
+        passwordLabel.setText("Password:");
+        passwordLabel.setTextSize(16);
+        passwordLabel.setPadding(0, 20, 0, 5);
+        layout.addView(passwordLabel);
+
+        EditText passwordInput = new EditText(this);
+        passwordInput.setHint("Enter password");
+        passwordInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        passwordInput.setId(View.generateViewId());
+        layout.addView(passwordInput);
+
+        // Remember me
+        CheckBox rememberMe = new CheckBox(this);
+        rememberMe.setText("Remember me for 8 hours");
+        rememberMe.setPadding(0, 20, 0, 10);
+        layout.addView(rememberMe);
+
+        // Register link
+        TextView registerLink = new TextView(this);
+        registerLink.setText("Don't have an account? Register");
+        registerLink.setTextColor(Color.BLUE);
+        registerLink.setPadding(0, 10, 0, 10);
+        layout.addView(registerLink);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("Login", null);
+        builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Set register link click listener after dialog is created
+        registerLink.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (passwordManager != null) {
+                passwordManager.showRegistrationDialog();
+            }
+        });
+
+        Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        styleButton(loginButton, "Login", "#4CAF50");
+        styleButton(cancelButton, "Cancel", "#F44336");
+
+        loginButton.setOnClickListener(v -> {
+            String username = usernameInput.getText().toString().trim();
+            String password = passwordInput.getText().toString();
+
+            if (username.isEmpty()) {
+                Toast.makeText(this, "Please enter username", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (password.isEmpty()) {
+                Toast.makeText(this, "Please enter password", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (validateUserLogin(username, password)) {
+                if (rememberMe.isChecked()) {
+                    // Save session with timestamp
+                    getSharedPreferences("PasswordManager", MODE_PRIVATE)
+                            .edit()
+                            .putString("logged_in_user", username)
+                            .putLong("login_time", System.currentTimeMillis())
+                            .apply();
+                }
+
+                Toast.makeText(this, "Login successful! Welcome " + username, Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+
+                // Handle successful login - open appropriate fragment
+                isUserLoggedIn = true;
+                currentUser = username;
+                isAdminMode = false;
+
+                // You can open a default fragment here
+                toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
+
+            } else {
+                Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show();
+                passwordInput.setText("");
+                passwordInput.requestFocus();
+            }
+        });
+
+        // Enter key handler
+        passwordInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                loginButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        usernameInput.requestFocus();
+    }
+
+    /**
+     * Validate user login against approved credentials
+     */
+    private boolean validateUserLogin(String username, String password) {
+        SharedPreferences prefs = getSharedPreferences("PasswordManager", MODE_PRIVATE);
+        String approvedUser = prefs.getString("username", null);
+        String savedHash = prefs.getString("user_password_hash", null);
+        String salt = prefs.getString("user_password_salt", null);
+        boolean isApproved = prefs.getBoolean("user_approved", false);
+
+        if (approvedUser == null || !approvedUser.equals(username) || !isApproved) {
+            return false;
+        }
+
+        if (savedHash == null || salt == null) {
+            return false;
+        }
+
+        // You need to implement hashPassword method or use PasswordManager's method
+        if (passwordManager != null) {
+            String hash = passwordManager.hashPassword(password, salt);
+            return hash.equals(savedHash);
+        }
+
+        return false;
+    }
+
+    /**
+     * Style button helper method
+     */
+    private void styleButton(Button button, String text, String colorHex) {
+        button.setText(text);
+        button.setBackgroundColor(Color.parseColor(colorHex));
+        button.setTextColor(Color.WHITE);
+        button.setPadding(30, 15, 30, 15);
+        button.setAllCaps(false);
+        button.setTextSize(14);
+    }
     /**
      * Show dialog with two options: Plain Print and Printed Print
      */
@@ -1213,20 +2782,154 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         builder.setView(layout);
 
-        builder.setPositiveButton("Save", (dialog, which) -> {
-            SharedPreferences.Editor editor = prefs.edit();
+        builder.setPositiveButton("Save", null); // Set later to get button reference
+        builder.setNegativeButton("Cancel", null); // Set later to get button reference
 
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Get the buttons from the dialog
+        Button saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+        Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // Set IDs for focus navigation
+        saveButton.setId(View.generateViewId());
+        cancelButton.setId(View.generateViewId());
+
+        // Create a parent layout for buttons to add spacing
+        LinearLayout buttonLayout = new LinearLayout(this);
+        buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
+        buttonLayout.setPadding(50, 10, 50, 20);
+
+        // Remove buttons from dialog's default layout
+        ViewGroup parent = (ViewGroup) saveButton.getParent();
+        if (parent != null) {
+            parent.removeView(saveButton);
+            parent.removeView(cancelButton);
+        }
+
+        // Add buttons to custom layout with spacing
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f
+        );
+        params.setMargins(5, 0, 5, 0);
+
+        saveButton.setLayoutParams(params);
+        cancelButton.setLayoutParams(params);
+
+        buttonLayout.addView(saveButton);
+        buttonLayout.addView(cancelButton);
+
+        // Add the button layout to the main layout
+        layout.addView(buttonLayout);
+
+        // Set initial button styles
+        saveButton.setBackgroundColor(Color.LTGRAY);
+        saveButton.setTextColor(Color.BLACK);
+        cancelButton.setBackgroundColor(Color.LTGRAY);
+        cancelButton.setTextColor(Color.BLACK);
+
+        // Set padding for better appearance
+        saveButton.setPadding(30, 15, 30, 15);
+        cancelButton.setPadding(30, 15, 30, 15);
+
+        // Set click listeners
+        saveButton.setOnClickListener(v -> {
+            SharedPreferences.Editor editor = prefs.edit();
             for (int i = 0; i < 3; i++) {
                 String value = editTexts[i].getText().toString().trim();
                 editor.putString("field_" + i, value);
             }
-
             editor.apply();
             Toast.makeText(this, "Data saved successfully!", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
         });
 
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-        builder.show();
+        cancelButton.setOnClickListener(v -> dialog.dismiss());
+
+        // Set focus change listener for Save button
+        saveButton.setOnFocusChangeListener((v, hasFocus) -> {
+            Button btn = (Button) v;
+            if (hasFocus) {
+                // Focused state
+                btn.setBackgroundColor(Color.parseColor("#4CAF50")); // Green
+                btn.setTextColor(Color.WHITE);
+                btn.setPadding(35, 18, 35, 18); // Slightly larger when focused
+
+                // Optional: Add elevation for focused state
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    btn.setElevation(10);
+                }
+            } else {
+                // Normal state
+                btn.setBackgroundColor(Color.LTGRAY);
+                btn.setTextColor(Color.BLACK);
+                btn.setPadding(30, 15, 30, 15);
+
+                // Reset elevation
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    btn.setElevation(0);
+                }
+            }
+        });
+
+        // Set focus change listener for Cancel button
+        cancelButton.setOnFocusChangeListener((v, hasFocus) -> {
+            Button btn = (Button) v;
+            if (hasFocus) {
+                // Focused state
+                btn.setBackgroundColor(Color.parseColor("#F44336")); // Red
+                btn.setTextColor(Color.WHITE);
+                btn.setPadding(35, 18, 35, 18); // Slightly larger when focused
+
+                // Optional: Add elevation for focused state
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    btn.setElevation(10);
+                }
+            } else {
+                // Normal state
+                btn.setBackgroundColor(Color.LTGRAY);
+                btn.setTextColor(Color.BLACK);
+                btn.setPadding(30, 15, 30, 15);
+
+                // Reset elevation
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    btn.setElevation(0);
+                }
+            }
+        });
+
+        // Optional: Add Enter key handling for buttons
+        saveButton.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                    saveButton.performClick();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        cancelButton.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                    cancelButton.performClick();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        // Set focus navigation between buttons
+        saveButton.setNextFocusLeftId(cancelButton.getId());
+        saveButton.setNextFocusRightId(cancelButton.getId());
+        saveButton.setNextFocusUpId(cancelButton.getId());
+        saveButton.setNextFocusDownId(cancelButton.getId());
+
+        cancelButton.setNextFocusLeftId(saveButton.getId());
+        cancelButton.setNextFocusRightId(saveButton.getId());
+        cancelButton.setNextFocusUpId(saveButton.getId());
+        cancelButton.setNextFocusDownId(saveButton.getId());
     }
 
     private void toggleDFragment() {
