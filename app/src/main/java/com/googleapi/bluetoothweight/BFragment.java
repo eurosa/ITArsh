@@ -957,16 +957,18 @@ public class BFragment extends Fragment {
                 if (printType.equals(PRINT_TYPE_PRINTED)) {
                     // Use formatted PCL print for "Printed Print" option
                     Log.d("BFragment", "Using PRINTED print format (PCL)");
-                    byte[] ticketBytes = buildPCLTicketBytes(entry);
+
+                    byte[] ticketBytes = buildDotMatrixTicket(entry);
                     if (ticketBytes != null && ticketBytes.length > 0) {
                         printSuccess = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
                     }
+
                 } else {
                     // Use plain text print for "Plain Print" option (default)
                     Log.d("BFragment", "Using PLAIN print format");
-                    String textContent = buildCompactPrintText(entry);
-                    if (textContent != null && !textContent.isEmpty()) {
-                        printSuccess = printerManager.usbPrinterHelper.printText(textContent);
+                    byte[] ticketBytes = buildPCLTicketBytes(entry);
+                    if (ticketBytes != null && ticketBytes.length > 0) {
+                        printSuccess = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
                     }
                 }
 
@@ -993,6 +995,101 @@ public class BFragment extends Fragment {
             printUsingAndroidPrintFramework(entry);
         }
     }
+
+    private byte[] buildDotMatrixTicket(WeighmentEntry entry) {
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
+        String dateTime = sdf.format(new Date());
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+
+        String date = dateFormat.format(new Date());
+        String time = timeFormat.format(new Date());
+
+        int pageWidth = 76;     // Full width
+        int leftWidth = 38;     // Left column
+        int rightWidth = 38;    // Right column
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        try {
+            // ===== PRINTER CONTROL COMMANDS =====
+            // ESC ! n - Select print mode (ESC/POS)
+            // 0x1B = ESC, 0x21 = '!'
+            // n = 0x00: Normal, 0x10: Double Height, 0x20: Double Width, 0x30: Double Height + Width
+            byte[] doubleSize = new byte[]{0x1B, 0x21, 0x30}; // Double Height + Double Width
+            byte[] normalSize = new byte[]{0x1B, 0x21, 0x00}; // Normal size
+
+            // Alternative: Separate commands
+            // byte[] doubleHeight = new byte[]{0x1B, 0x21, 0x10}; // Double Height only
+            // byte[] doubleWidth = new byte[]{0x1B, 0x21, 0x20};  // Double Width only
+
+            outputStream.write(doubleSize);
+
+            // ===== TOP MARGIN =====
+            outputStream.write("\n".getBytes());
+            // ===== VEHICLE DETAILS =====
+            outputStream.write(("             " +date+"         " + entry.getSerialNo()).getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+
+            outputStream.write(("             " +entry.getVehicleNo()+"             " + entry.getSerialNo()).getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+
+            outputStream.write(("             " +entry.getMaterial()+"             " + dateTime.substring(11)).getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+
+            /*outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
+                    "            " + entry.getVehicleNo(),
+                    "             " + entry.getSerialNo()).getBytes());
+
+
+            outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
+                    "              " + entry.getMaterial(),
+                    "              " + dateTime.substring(11)).getBytes());*/
+
+            // GROSS
+            // outputStream.write(centerText("          " + formatNumber(entry.getGross()) + " kg", pageWidth).getBytes());
+            outputStream.write(("               " +formatNumber(entry.getGross()) + " kg").getBytes());
+            outputStream.write("\n\n".getBytes());
+            outputStream.write("\n".getBytes());
+            // TARE
+            outputStream.write(("               " +formatNumber(entry.getTare()) + " kg").getBytes());
+            // outputStream.write("          " + formatNumber(entry.getTare() + " kg").getBytes());
+            outputStream.write("\n".getBytes());
+
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+
+            // NET - in double size
+            //outputStream.write(centerText("          " + formatNumber(entry.getNet()) + " kg", pageWidth).getBytes());
+            outputStream.write(("               " +formatNumber(entry.getNet()) + " kg").getBytes());
+            outputStream.write("\n".getBytes());
+
+            // Reset to normal size for remaining content
+            outputStream.write(normalSize);
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+
+            return outputStream.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new byte[0];
+        }
+    }
+
+
     private byte[] buildPCLTicketBytes(WeighmentEntry entry) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());

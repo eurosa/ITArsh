@@ -392,7 +392,9 @@ public class DFragment extends Fragment {
             if (usePrintedFormat) {
                 // Use formatted PCL/ESC/POS print
                 Log.d("DFragment", "Using PRINTED print format (PCL/ESC/POS)");
-                byte[] ticketBytes = buildPCLTicketBytes(entry);
+
+
+                byte[] ticketBytes = buildDotMatrixTicket(entry);
                 if (ticketBytes != null && ticketBytes.length > 0) {
                     Log.d("DFragment", "Sending " + ticketBytes.length + " bytes to printer");
                     printResult = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
@@ -400,10 +402,11 @@ public class DFragment extends Fragment {
                     Log.e("DFragment", "ticketBytes is empty");
                     return false;
                 }
+
             } else {
                 // Use plain text print
                 Log.d("DFragment", "Using PLAIN print format");
-                byte[] ticketBytes = buildDotMatrixTicket(entry);
+                byte[] ticketBytes = buildPCLTicketBytes(entry);
                 if (ticketBytes != null && ticketBytes.length > 0) {
                     Log.d("DFragment", "Sending " + ticketBytes.length + " bytes to printer");
                     printResult = printerManager.usbPrinterHelper.sendRawData(ticketBytes);
@@ -569,7 +572,6 @@ public class DFragment extends Fragment {
     }
 
     private byte[] buildDotMatrixTicket(WeighmentEntry entry) {
-
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());
 
@@ -586,44 +588,73 @@ public class DFragment extends Fragment {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         try {
+            // ===== PRINTER CONTROL COMMANDS =====
+            // ESC ! n - Select print mode (ESC/POS)
+            // 0x1B = ESC, 0x21 = '!'
+            // n = 0x00: Normal, 0x10: Double Height, 0x20: Double Width, 0x30: Double Height + Width
+            byte[] doubleSize = new byte[]{0x1B, 0x21, 0x30}; // Double Height + Double Width
+            byte[] normalSize = new byte[]{0x1B, 0x21, 0x00}; // Normal size
 
-            // ===== TOP MARGIN (adjust as per paper feed) =====
-            outputStream.write("\n\n\n".getBytes());
-            outputStream.write("\n\n\n".getBytes());
+            // Alternative: Separate commands
+            // byte[] doubleHeight = new byte[]{0x1B, 0x21, 0x10}; // Double Height only
+            // byte[] doubleWidth = new byte[]{0x1B, 0x21, 0x20};  // Double Width only
 
+            outputStream.write(doubleSize);
 
+            // ===== TOP MARGIN =====
+            outputStream.write("\n".getBytes());
+            // ===== VEHICLE DETAILS =====
+            outputStream.write(("             " +date+"         " + entry.getSerialNo()).getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
 
+            outputStream.write(("             " +entry.getVehicleNo()+"             " + entry.getSerialNo()).getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
 
+            outputStream.write(("             " +entry.getMaterial()+"             " + dateTime.substring(11)).getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
 
-            // ===== VEHICLE DETAILS (LEFT + RIGHT BOXES) =====
-            outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
-                    "                 " + date,
-                    "                 " + entry.getSerialNo()).getBytes());
-            outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
+            /*outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
                     "            " + entry.getVehicleNo(),
                     "             " + entry.getSerialNo()).getBytes());
 
+
             outputStream.write(String.format("%-" + leftWidth + "s%-" + rightWidth + "s",
                     "              " + entry.getMaterial(),
-                    "              " + dateTime.substring(11)).getBytes());
+                    "              " + dateTime.substring(11)).getBytes());*/
 
             // GROSS
-            outputStream.write(centerText("                       " + formatNumber(entry.getGross()) + " kg", pageWidth).getBytes());
+           // outputStream.write(centerText("          " + formatNumber(entry.getGross()) + " kg", pageWidth).getBytes());
+            outputStream.write(("               " +formatNumber(entry.getGross()) + " kg").getBytes());
             outputStream.write("\n\n".getBytes());
-            //TARE
-            outputStream.write(centerText("                       " + formatNumber(entry.getTare()) + " kg", pageWidth).getBytes());
+            outputStream.write("\n".getBytes());
+            // TARE
+            outputStream.write(("               " +formatNumber(entry.getTare()) + " kg").getBytes());
+           // outputStream.write("          " + formatNumber(entry.getTare() + " kg").getBytes());
             outputStream.write("\n".getBytes());
 
-
+            outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            // Net (highlight using spacing)
-            outputStream.write(centerText("                        " + formatNumber(entry.getNet()) + " kg", pageWidth).getBytes());
+            // NET - in double size
+            //outputStream.write(centerText("          " + formatNumber(entry.getNet()) + " kg", pageWidth).getBytes());
+            outputStream.write(("               " +formatNumber(entry.getNet()) + " kg").getBytes());
             outputStream.write("\n".getBytes());
 
-
-
-
+            // Reset to normal size for remaining content
+            outputStream.write(normalSize);
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
+            outputStream.write("\n".getBytes());
 
             return outputStream.toByteArray();
 
