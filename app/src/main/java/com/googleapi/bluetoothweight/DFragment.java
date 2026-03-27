@@ -608,7 +608,7 @@ public class DFragment extends Fragment {
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            outputStream.write(("             " +entry.getVehicleNo()+"             " + entry.getSerialNo()).getBytes());
+            outputStream.write(("             " +entry.getVehicleNo()+"               " + entry.getSerialNo()).getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
@@ -627,11 +627,11 @@ public class DFragment extends Fragment {
 
             // GROSS
            // outputStream.write(centerText("          " + formatNumber(entry.getGross()) + " kg", pageWidth).getBytes());
-            outputStream.write(("               " +formatNumber(entry.getGross()) + " kg").getBytes());
+            outputStream.write(("                    " +formatNumber(entry.getGross()) + " kg").getBytes());
             outputStream.write("\n\n".getBytes());
             outputStream.write("\n".getBytes());
             // TARE
-            outputStream.write(("               " +formatNumber(entry.getTare()) + " kg").getBytes());
+            outputStream.write(("                     " +formatNumber(entry.getTare()) + " kg").getBytes());
            // outputStream.write("          " + formatNumber(entry.getTare() + " kg").getBytes());
             outputStream.write("\n".getBytes());
 
@@ -640,7 +640,7 @@ public class DFragment extends Fragment {
 
             // NET - in double size
             //outputStream.write(centerText("          " + formatNumber(entry.getNet()) + " kg", pageWidth).getBytes());
-            outputStream.write(("               " +formatNumber(entry.getNet()) + " kg").getBytes());
+            outputStream.write(("                     " +formatNumber(entry.getNet()) + " kg").getBytes());
             outputStream.write("\n".getBytes());
 
             // Reset to normal size for remaining content
