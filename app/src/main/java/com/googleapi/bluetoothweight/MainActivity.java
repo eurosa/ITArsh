@@ -1686,7 +1686,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             String password = passwordInput.getText().toString();
 
             // Check against fixed admin credentials
-            if (username.equals("admin") && password.equals("admin@123")) {
+            if (passwordManager.validateAdminLogin(username, password)) {
                 dialog.dismiss();
                 toggleReportFragment();
             } else {
@@ -1769,7 +1769,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             String password = passwordInput.getText().toString();
 
             // Check against fixed admin credentials
-            if (username.equals("admin") && password.equals("admin@123")) {
+            if (passwordManager.validateAdminLogin(username, password)) {
                 dialog.dismiss();
                 toggleEFragment();
             } else {
@@ -1850,7 +1850,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             String password = passwordInput.getText().toString();
 
             // Check against fixed admin credentials
-            if (username.equals("admin") && password.equals("admin@123")) {
+            if (passwordManager.validateAdminLogin(username, password)) {
                 dialog.dismiss();
                 openMasterDataDialog(); // Open master data after successful login
             } else {
@@ -2004,7 +2004,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             String password = passwordInput.getText().toString();
 
             // Check against fixed admin credentials
-            if (username.equals("admin") && password.equals("admin@123")) {
+            if (passwordManager.validateAdminLogin(username, password)) {
                 dialog.dismiss();
                 showThreeFieldDialog();
             } else {
@@ -2085,7 +2085,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             String password = passwordInput.getText().toString();
 
             // Check against fixed admin credentials
-            if (username.equals("admin") && password.equals("admin@123")) {
+            if (passwordManager.validateAdminLogin(username, password)) {
                 dialog.dismiss();
                 showPrintTypeSelectionDialog();
             } else {
@@ -2107,7 +2107,15 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         usernameInput.requestFocus();
     }
-
+    // In your activity, check admin credentials
+    private void checkAdminLogin(String username, String password) {
+        if (passwordManager.validateAdminLogin(username, password)) {
+            // Admin login successful
+            showPrintTypeSelectionDialog();
+        } else {
+            Toast.makeText(this, "Invalid admin credentials", Toast.LENGTH_SHORT).show();
+        }
+    }
     /**
      * Show dialog with login/register options
      */
