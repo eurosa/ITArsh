@@ -1675,6 +1675,42 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
 
+        // After getting the button references
+        loginButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                loginButton.setBackgroundColor(Color.parseColor("#2E7D32")); // Darker green
+                loginButton.setScaleX(1.02f);
+                loginButton.setScaleY(1.02f);
+            } else {
+                loginButton.setBackgroundColor(Color.parseColor("#4CAF50")); // Normal green
+                loginButton.setScaleX(1.0f);
+                loginButton.setScaleY(1.0f);
+            }
+        });
+
+        cancelButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                cancelButton.setBackgroundColor(Color.parseColor("#C62828")); // Darker red
+                cancelButton.setScaleX(1.02f);
+                cancelButton.setScaleY(1.02f);
+            } else {
+                cancelButton.setBackgroundColor(Color.parseColor("#F44336")); // Normal red
+                cancelButton.setScaleX(1.0f);
+                cancelButton.setScaleY(1.0f);
+            }
+        });
+
+// Make buttons focusable for navigation
+        loginButton.setFocusable(true);
+        loginButton.setFocusableInTouchMode(true);
+        cancelButton.setFocusable(true);
+        cancelButton.setFocusableInTouchMode(true);
+
+// Set navigation order
+        passwordInput.setNextFocusDownId(loginButton.getId());
+        loginButton.setNextFocusLeftId(cancelButton.getId());
+        cancelButton.setNextFocusRightId(loginButton.getId());
+
         // Style buttons
         loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
         loginButton.setTextColor(Color.WHITE);
@@ -1758,6 +1794,42 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
 
+        // After getting the button references
+        loginButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                loginButton.setBackgroundColor(Color.parseColor("#2E7D32")); // Darker green
+                loginButton.setScaleX(1.02f);
+                loginButton.setScaleY(1.02f);
+            } else {
+                loginButton.setBackgroundColor(Color.parseColor("#4CAF50")); // Normal green
+                loginButton.setScaleX(1.0f);
+                loginButton.setScaleY(1.0f);
+            }
+        });
+
+        cancelButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                cancelButton.setBackgroundColor(Color.parseColor("#C62828")); // Darker red
+                cancelButton.setScaleX(1.02f);
+                cancelButton.setScaleY(1.02f);
+            } else {
+                cancelButton.setBackgroundColor(Color.parseColor("#F44336")); // Normal red
+                cancelButton.setScaleX(1.0f);
+                cancelButton.setScaleY(1.0f);
+            }
+        });
+
+// Make buttons focusable for navigation
+        loginButton.setFocusable(true);
+        loginButton.setFocusableInTouchMode(true);
+        cancelButton.setFocusable(true);
+        cancelButton.setFocusableInTouchMode(true);
+
+// Set navigation order
+        passwordInput.setNextFocusDownId(loginButton.getId());
+        loginButton.setNextFocusLeftId(cancelButton.getId());
+        cancelButton.setNextFocusRightId(loginButton.getId());
+
         // Style buttons
         loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
         loginButton.setTextColor(Color.WHITE);
@@ -1838,6 +1910,42 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+
+        // After getting the button references
+        loginButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                loginButton.setBackgroundColor(Color.parseColor("#2E7D32")); // Darker green
+                loginButton.setScaleX(1.02f);
+                loginButton.setScaleY(1.02f);
+            } else {
+                loginButton.setBackgroundColor(Color.parseColor("#4CAF50")); // Normal green
+                loginButton.setScaleX(1.0f);
+                loginButton.setScaleY(1.0f);
+            }
+        });
+
+        cancelButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                cancelButton.setBackgroundColor(Color.parseColor("#C62828")); // Darker red
+                cancelButton.setScaleX(1.02f);
+                cancelButton.setScaleY(1.02f);
+            } else {
+                cancelButton.setBackgroundColor(Color.parseColor("#F44336")); // Normal red
+                cancelButton.setScaleX(1.0f);
+                cancelButton.setScaleY(1.0f);
+            }
+        });
+
+// Make buttons focusable for navigation
+        loginButton.setFocusable(true);
+        loginButton.setFocusableInTouchMode(true);
+        cancelButton.setFocusable(true);
+        cancelButton.setFocusableInTouchMode(true);
+
+// Set navigation order
+        passwordInput.setNextFocusDownId(loginButton.getId());
+        loginButton.setNextFocusLeftId(cancelButton.getId());
+        cancelButton.setNextFocusRightId(loginButton.getId());
 
         // Style buttons
         loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
@@ -1993,6 +2101,44 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
 
+
+        // After getting the button references
+        loginButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                loginButton.setBackgroundColor(Color.parseColor("#2E7D32")); // Darker green
+                loginButton.setScaleX(1.02f);
+                loginButton.setScaleY(1.02f);
+            } else {
+                loginButton.setBackgroundColor(Color.parseColor("#4CAF50")); // Normal green
+                loginButton.setScaleX(1.0f);
+                loginButton.setScaleY(1.0f);
+            }
+        });
+
+        cancelButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                cancelButton.setBackgroundColor(Color.parseColor("#C62828")); // Darker red
+                cancelButton.setScaleX(1.02f);
+                cancelButton.setScaleY(1.02f);
+            } else {
+                cancelButton.setBackgroundColor(Color.parseColor("#F44336")); // Normal red
+                cancelButton.setScaleX(1.0f);
+                cancelButton.setScaleY(1.0f);
+            }
+        });
+
+// Make buttons focusable for navigation
+        loginButton.setFocusable(true);
+        loginButton.setFocusableInTouchMode(true);
+        cancelButton.setFocusable(true);
+        cancelButton.setFocusableInTouchMode(true);
+
+// Set navigation order
+        passwordInput.setNextFocusDownId(loginButton.getId());
+        loginButton.setNextFocusLeftId(cancelButton.getId());
+        cancelButton.setNextFocusRightId(loginButton.getId());
+
+
         // Style buttons
         loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
         loginButton.setTextColor(Color.WHITE);
@@ -2073,6 +2219,42 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
         Button cancelButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE);
+// After getting the button references
+        loginButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                loginButton.setBackgroundColor(Color.parseColor("#2E7D32")); // Darker green
+                loginButton.setScaleX(1.02f);
+                loginButton.setScaleY(1.02f);
+            } else {
+                loginButton.setBackgroundColor(Color.parseColor("#4CAF50")); // Normal green
+                loginButton.setScaleX(1.0f);
+                loginButton.setScaleY(1.0f);
+            }
+        });
+
+        cancelButton.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                cancelButton.setBackgroundColor(Color.parseColor("#C62828")); // Darker red
+                cancelButton.setScaleX(1.02f);
+                cancelButton.setScaleY(1.02f);
+            } else {
+                cancelButton.setBackgroundColor(Color.parseColor("#F44336")); // Normal red
+                cancelButton.setScaleX(1.0f);
+                cancelButton.setScaleY(1.0f);
+            }
+        });
+
+// Make buttons focusable for navigation
+        loginButton.setFocusable(true);
+        loginButton.setFocusableInTouchMode(true);
+        cancelButton.setFocusable(true);
+        cancelButton.setFocusableInTouchMode(true);
+
+// Set navigation order
+        passwordInput.setNextFocusDownId(loginButton.getId());
+        loginButton.setNextFocusLeftId(cancelButton.getId());
+        cancelButton.setNextFocusRightId(loginButton.getId());
+
 
         // Style buttons
         loginButton.setBackgroundColor(Color.parseColor("#4CAF50"));
