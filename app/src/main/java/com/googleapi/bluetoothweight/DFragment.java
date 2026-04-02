@@ -588,57 +588,77 @@ public class DFragment extends Fragment {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         try {
-            // ===== PRINTER CONTROL COMMANDS =====
-            // ESC ! n - Select print mode (ESC/POS)
-            // 0x1B = ESC, 0x21 = '!'
-            // n = 0x00: Normal, 0x10: Double Height, 0x20: Double Width, 0x30: Double Height + Width
-            byte[] doubleSize = new byte[]{0x1B, 0x21, 0x30}; // Double Height + Double Width
-            byte[] normalSize = new byte[]{0x1B, 0x21, 0x00}; // Normal size
-
-            // Alternative: Separate commands
-            // byte[] doubleHeight = new byte[]{0x1B, 0x21, 0x10}; // Double Height only
-            // byte[] doubleWidth = new byte[]{0x1B, 0x21, 0x20};  // Double Width only
+            byte[] doubleSize = new byte[]{0x1B, 0x21, 0x30};
+            byte[] normalSize = new byte[]{0x1B, 0x21, 0x00};
 
             outputStream.write(doubleSize);
 
             // ===== TOP MARGIN =====
+
             outputStream.write("\n".getBytes());
-            // ===== VEHICLE DETAILS =====
-            outputStream.write(("             " +date+"         " + entry.getSerialNo()).getBytes());
+
+            // Calculate spaces for vehicle line
+            int dateSpacesCount = 12 - Math.max(0, date.length() - 6);
+            dateSpacesCount = Math.max(3, dateSpacesCount); // Minimum 3 spaces
+            String dateSpaces = new String(new char[dateSpacesCount]).replace('\0', ' ');
+
+            // LINE 1: Date and Serial (fixed)
+            outputStream.write(("             " + date + dateSpaces + entry.getSerialNo()).getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            outputStream.write(("             " +entry.getVehicleNo()+"               " + entry.getSerialNo()).getBytes());
+            // LINE 2: Vehicle Number and Serial Number with dynamic spacing
+            String vehicleNo = entry.getVehicleNo();
+            String serialNo = entry.getSerialNo();
+
+            // Calculate spaces for vehicle line
+            int vehicleSpacesCount = 12 - Math.max(0, vehicleNo.length() - 6);
+            vehicleSpacesCount = Math.max(3, vehicleSpacesCount); // Minimum 3 spaces
+            String vehicleSpaces = new String(new char[vehicleSpacesCount]).replace('\0', ' ');
+
+            outputStream.write(("             " + vehicleNo + vehicleSpaces + serialNo).getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            outputStream.write(("             " +entry.getMaterial()+"             " + dateTime.substring(11)).getBytes());
+            // LINE 3: Material (double size) and Time (normal size)
+            String material = entry.getMaterial();
+            String timeStr = dateTime.substring(11); // HH:MM:SS format
+
+            // Calculate spaces for material line
+            int materialSpacesCount = 15 - Math.max(0, material.length() - 10);
+            materialSpacesCount = Math.max(3, materialSpacesCount); // Minimum 3 spaces
+            String materialSpaces = new String(new char[materialSpacesCount]).replace('\0', ' ');
+
+            // Write material in double size
+            outputStream.write(("             " + material + materialSpaces).getBytes());
+
+            // Switch to normal size for time
+            outputStream.write(normalSize);
+            outputStream.write(timeStr.getBytes());
+
+            // Switch back to double size for remaining content
+            outputStream.write(doubleSize);
+
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            outputStream.write(("                      " +formatNumber(entry.getGross()) + " kg").getBytes());
+            // Weight details (in double size)
+            outputStream.write(("                      " + formatNumber(entry.getGross()) + " kg").getBytes());
             outputStream.write("\n\n".getBytes());
             outputStream.write("\n".getBytes());
-            // TARE
-            outputStream.write(("                      " +formatNumber(entry.getTare()) + " kg").getBytes());
 
-            outputStream.write("\n".getBytes());
-
+            outputStream.write(("                      " + formatNumber(entry.getTare()) + " kg").getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
-
-            // NET - in double size
-
-            outputStream.write(("                      " +formatNumber(entry.getNet()) + " kg").getBytes());
             outputStream.write("\n".getBytes());
 
-            // Reset to normal size for remaining content
+            outputStream.write(("                      " + formatNumber(entry.getNet()) + " kg").getBytes());
+            outputStream.write("\n".getBytes());
+
             outputStream.write(normalSize);
             for(int i=0; i<10; i++){
                 outputStream.write("\n".getBytes());
             }
-
-
 
             return outputStream.toByteArray();
 
@@ -647,7 +667,6 @@ public class DFragment extends Fragment {
             return new byte[0];
         }
     }
-
     private byte[] buildPCLTicketBytesPlain(WeighmentEntry entry) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());

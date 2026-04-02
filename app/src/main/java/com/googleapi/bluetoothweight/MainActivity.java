@@ -1936,13 +1936,13 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             }
         });
 
-// Make buttons focusable for navigation
+        // Make buttons focusable for navigation
         loginButton.setFocusable(true);
         loginButton.setFocusableInTouchMode(true);
         cancelButton.setFocusable(true);
         cancelButton.setFocusableInTouchMode(true);
 
-// Set navigation order
+        // Set navigation order
         passwordInput.setNextFocusDownId(loginButton.getId());
         loginButton.setNextFocusLeftId(cancelButton.getId());
         cancelButton.setNextFocusRightId(loginButton.getId());
