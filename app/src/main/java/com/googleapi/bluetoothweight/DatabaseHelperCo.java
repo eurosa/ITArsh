@@ -7,16 +7,13 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
-public class DatabaseHelper extends SQLiteOpenHelper {
+public class DatabaseHelperCo extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "WeighmentDB";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 3; // Increment version for master data table
 
     // Table names
     private static final String TABLE_WEIGHMENT = "weighment_entries";
@@ -35,7 +32,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_MANUAL_TARE = "manual_tare";
     private static final String COLUMN_NET = "net";
     private static final String COLUMN_TIMESTAMP = "timestamp";
-    private static final String COLUMN_FINALIZED_TIMESTAMP = "finalized_timestamp";
     private static final String COLUMN_FINALIZED = "finalized";
 
     // Master data table column names
@@ -64,8 +60,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + COLUMN_MANUAL_TARE + " TEXT,"
             + COLUMN_NET + " TEXT,"
             + COLUMN_FINALIZED + " INTEGER DEFAULT 0,"
-            + COLUMN_TIMESTAMP + " DATETIME DEFAULT CURRENT_TIMESTAMP,"
-            + COLUMN_FINALIZED_TIMESTAMP + " DATETIME"
+            + COLUMN_TIMESTAMP + " DATETIME DEFAULT CURRENT_TIMESTAMP"
             + ")";
 
     // Create master data table query
@@ -77,7 +72,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             + "UNIQUE(" + COLUMN_MASTER_TYPE + ", " + COLUMN_MASTER_VALUE + ")"
             + ")";
 
-    public DatabaseHelper(Context context) {
+    public DatabaseHelperCo(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
@@ -87,11 +82,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_MASTER_TABLE);
         Log.d("DatabaseHelper", "Tables created successfully");
 
+        // Insert default master data
         insertDefaultMasterData(db);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        // Handle upgrade from version 1 to 2
         if (oldVersion < 2) {
             try {
                 db.execSQL("ALTER TABLE " + TABLE_WEIGHMENT + " ADD COLUMN " + COLUMN_FINALIZED + " INTEGER DEFAULT 0");
@@ -101,28 +98,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
 
+        // Handle upgrade from version 2 to 3
         if (oldVersion < 3) {
             try {
                 db.execSQL(CREATE_MASTER_TABLE);
                 Log.d("DatabaseHelper", "Created master data table");
+
+                // Extract existing unique values from weighment table and add to master data
                 migrateExistingDataToMaster(db);
+
+                // Insert default master data for missing values
                 insertDefaultMasterData(db);
             } catch (Exception e) {
                 Log.e("DatabaseHelper", "Error creating master data table: " + e.getMessage());
-            }
-        }
-
-        if (oldVersion < 4) {
-            try {
-                db.execSQL("ALTER TABLE " + TABLE_WEIGHMENT + " ADD COLUMN " + COLUMN_FINALIZED_TIMESTAMP + " DATETIME");
-                Log.d("DatabaseHelper", "Added finalized_timestamp column to existing table");
-
-                ContentValues values = new ContentValues();
-                values.put(COLUMN_FINALIZED_TIMESTAMP, getCurrentDateTime());
-                db.update(TABLE_WEIGHMENT, values, COLUMN_FINALIZED + "=?", new String[]{"1"});
-                Log.d("DatabaseHelper", "Updated finalized_timestamp for existing finalized entries");
-            } catch (Exception e) {
-                Log.e("DatabaseHelper", "Error adding finalized_timestamp column: " + e.getMessage());
             }
         }
     }
@@ -130,6 +118,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private void insertDefaultMasterData(SQLiteDatabase db) {
         ContentValues values = new ContentValues();
 
+        // Default vehicle types
         String[] defaultVehicleTypes = {"Truck", "Tractor", "Mini Truck", "Container", "Trailer"};
         for (String type : defaultVehicleTypes) {
             if (!isMasterDataExists(db, TYPE_VEHICLE_TYPE, type)) {
@@ -140,6 +129,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
 
+        // Default vehicle numbers
         String[] defaultVehicleNos = {"MH01AB1234", "MH02CD5678", "MH03EF9012", "MH04GH3456", "MH05IJ7890"};
         for (String vehicleNo : defaultVehicleNos) {
             if (!isMasterDataExists(db, TYPE_VEHICLE_NO, vehicleNo)) {
@@ -150,6 +140,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
 
+        // Default materials
         String[] defaultMaterials = {"Sand", "Cement", "Bricks", "Steel", "Aggregate", "Stone", "Wood"};
         for (String material : defaultMaterials) {
             if (!isMasterDataExists(db, TYPE_MATERIAL, material)) {
@@ -160,6 +151,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
 
+        // Default parties
         String[] defaultParties = {"ABC Construction", "XYZ Builders", "PQR Infrastructure",
                 "LMN Enterprises", "DEF Developers", "GHI Materials"};
         for (String party : defaultParties) {
@@ -173,9 +165,16 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     private void migrateExistingDataToMaster(SQLiteDatabase db) {
+        // Migrate vehicle types
         migrateColumnToMaster(db, COLUMN_VEHICLE_TYPE, TYPE_VEHICLE_TYPE);
+
+        // Migrate vehicle numbers
         migrateColumnToMaster(db, COLUMN_VEHICLE_NO, TYPE_VEHICLE_NO);
+
+        // Migrate materials
         migrateColumnToMaster(db, COLUMN_MATERIAL, TYPE_MATERIAL);
+
+        // Migrate parties
         migrateColumnToMaster(db, COLUMN_PARTY, TYPE_PARTY);
     }
 
@@ -210,11 +209,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return exists;
     }
 
-    String getCurrentDateTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        return sdf.format(new Date());
-    }
-
     // ==================== WEIGHMENT METHODS ====================
 
     public long insertWeighment(WeighmentEntry entry) {
@@ -233,16 +227,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_NET, entry.getNet());
         values.put(COLUMN_FINALIZED, entry.isFinalized() ? 1 : 0);
 
-        if (entry.getTimestamp() != null) {
-            values.put(COLUMN_TIMESTAMP, entry.getTimestamp());
-        }
-
-        if (entry.isFinalized()) {
-            values.put(COLUMN_FINALIZED_TIMESTAMP, getCurrentDateTime());
-        }
-
         long id = db.insert(TABLE_WEIGHMENT, null, values);
 
+        // Add new values to master data if they don't exist
         if (entry.getVehicleNo() != null && !entry.getVehicleNo().isEmpty()) {
             addToMasterDataIfNotExists(db, TYPE_VEHICLE_NO, entry.getVehicleNo());
         }
@@ -291,51 +278,38 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public WeighmentEntry getWeighmentBySerialNo(String serialNo) {
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = null;
+
+        Cursor cursor = db.query(TABLE_WEIGHMENT, null, COLUMN_SERIAL_NO + "=?",
+                new String[]{serialNo}, null, null, null);
+
         WeighmentEntry entry = null;
 
-        try {
-            cursor = db.query(TABLE_WEIGHMENT, null, COLUMN_SERIAL_NO + "=?",
-                    new String[]{serialNo}, null, null, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            entry = new WeighmentEntry();
+            entry.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+            entry.setSerialNo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SERIAL_NO)));
+            entry.setVehicleNo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_VEHICLE_NO)));
+            entry.setVehicleType(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_VEHICLE_TYPE)));
+            entry.setMaterial(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MATERIAL)));
+            entry.setParty(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PARTY)));
+            entry.setCharge(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CHARGE)));
+            entry.setGross(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GROSS)));
+            entry.setTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TARE)));
+            entry.setManualTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MANUAL_TARE)));
+            entry.setNet(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NET)));
 
-            if (cursor != null && cursor.moveToFirst()) {
-                entry = new WeighmentEntry();
-                entry.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-                entry.setSerialNo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SERIAL_NO)));
-                entry.setVehicleNo(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_VEHICLE_NO)));
-                entry.setVehicleType(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_VEHICLE_TYPE)));
-                entry.setMaterial(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MATERIAL)));
-                entry.setParty(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PARTY)));
-                entry.setCharge(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CHARGE)));
-                entry.setGross(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_GROSS)));
-                entry.setTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TARE)));
-                entry.setManualTare(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MANUAL_TARE)));
-                entry.setNet(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NET)));
-
-                int finalizedIndex = cursor.getColumnIndex(COLUMN_FINALIZED);
-                if (finalizedIndex >= 0) {
-                    entry.setFinalized(cursor.getInt(finalizedIndex) == 1);
-                } else {
-                    entry.setFinalized(false);
-                }
-
-                entry.setTimestamp(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)));
-
-                int finalizedTimestampIndex = cursor.getColumnIndex(COLUMN_FINALIZED_TIMESTAMP);
-                if (finalizedTimestampIndex >= 0) {
-                    String finalizedTimestamp = cursor.getString(finalizedTimestampIndex);
-                    entry.setFinalizedTimestamp(finalizedTimestamp);
-                }
+            int finalizedIndex = cursor.getColumnIndex(COLUMN_FINALIZED);
+            if (finalizedIndex >= 0) {
+                entry.setFinalized(cursor.getInt(finalizedIndex) == 1);
+            } else {
+                entry.setFinalized(false);
             }
-        } catch (Exception e) {
-            Log.e("DatabaseHelper", "Error getting weighment: " + e.getMessage());
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-            db.close();
+
+            entry.setTimestamp(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)));
+            cursor.close();
         }
 
+        db.close();
         return entry;
     }
 
@@ -357,93 +331,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return nextSerial;
     }
 
-    // FIXED: Updated updateWeighment method without database closing conflict
     public int updateWeighment(WeighmentEntry entry) {
-        SQLiteDatabase db = null;
-        Cursor cursor = null;
-
-        try {
-            db = this.getWritableDatabase();
-
-            // Get current finalized status without closing database
-            boolean wasFinalized = false;
-            try {
-                cursor = db.query(TABLE_WEIGHMENT, new String[]{COLUMN_FINALIZED},
-                        COLUMN_SERIAL_NO + "=?", new String[]{entry.getSerialNo()},
-                        null, null, null);
-                if (cursor.moveToFirst()) {
-                    wasFinalized = cursor.getInt(0) == 1;
-                }
-            } catch (Exception e) {
-                Log.e("DatabaseHelper", "Error checking finalized status: " + e.getMessage());
-            } finally {
-                if (cursor != null) {
-                    cursor.close();
-                }
-            }
-
-            ContentValues values = new ContentValues();
-            values.put(COLUMN_VEHICLE_NO, entry.getVehicleNo());
-            values.put(COLUMN_VEHICLE_TYPE, entry.getVehicleType());
-            values.put(COLUMN_MATERIAL, entry.getMaterial());
-            values.put(COLUMN_PARTY, entry.getParty());
-            values.put(COLUMN_CHARGE, entry.getCharge());
-            values.put(COLUMN_GROSS, entry.getGross());
-            values.put(COLUMN_TARE, entry.getTare());
-            values.put(COLUMN_MANUAL_TARE, entry.getManualTare());
-            values.put(COLUMN_NET, entry.getNet());
-
-            boolean isNowFinalized = entry.isFinalized();
-            values.put(COLUMN_FINALIZED, isNowFinalized ? 1 : 0);
-
-            // Set finalized timestamp only when finalizing (changing from false to true)
-            if (!wasFinalized && isNowFinalized) {
-                values.put(COLUMN_FINALIZED_TIMESTAMP, getCurrentDateTime());
-            } else if (!isNowFinalized) {
-                // Clear finalized timestamp if unfinalizing
-                values.putNull(COLUMN_FINALIZED_TIMESTAMP);
-            }
-
-            int result = db.update(TABLE_WEIGHMENT, values, COLUMN_SERIAL_NO + "=?",
-                    new String[]{entry.getSerialNo()});
-
-            Log.d("DatabaseHelper", "Updated entry with serial: " + entry.getSerialNo() + ", result: " + result);
-            return result;
-
-        } catch (Exception e) {
-            Log.e("DatabaseHelper", "Error updating weighment: " + e.getMessage());
-            return 0;
-        } finally {
-            if (db != null && db.isOpen()) {
-                db.close();
-            }
-        }
-    }
-
-    public int finalizeWeighment(String serialNo) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
-        values.put(COLUMN_FINALIZED, 1);
-        values.put(COLUMN_FINALIZED_TIMESTAMP, getCurrentDateTime());
 
-        int result = db.update(TABLE_WEIGHMENT, values, COLUMN_SERIAL_NO + "=? AND " + COLUMN_FINALIZED + "=?",
-                new String[]{serialNo, "0"});
+        values.put(COLUMN_VEHICLE_NO, entry.getVehicleNo());
+        values.put(COLUMN_VEHICLE_TYPE, entry.getVehicleType());
+        values.put(COLUMN_MATERIAL, entry.getMaterial());
+        values.put(COLUMN_PARTY, entry.getParty());
+        values.put(COLUMN_CHARGE, entry.getCharge());
+        values.put(COLUMN_GROSS, entry.getGross());
+        values.put(COLUMN_TARE, entry.getTare());
+        values.put(COLUMN_MANUAL_TARE, entry.getManualTare());
+        values.put(COLUMN_NET, entry.getNet());
+        values.put(COLUMN_FINALIZED, entry.isFinalized() ? 1 : 0);
+
+        int result = db.update(TABLE_WEIGHMENT, values, COLUMN_SERIAL_NO + "=?",
+                new String[]{entry.getSerialNo()});
+
         db.close();
         return result;
-    }
-
-    public String getFinalizedTimestamp(String serialNo) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.query(TABLE_WEIGHMENT, new String[]{COLUMN_FINALIZED_TIMESTAMP},
-                COLUMN_SERIAL_NO + "=?", new String[]{serialNo}, null, null, null);
-
-        String finalizedTimestamp = null;
-        if (cursor.moveToFirst()) {
-            finalizedTimestamp = cursor.getString(0);
-        }
-        cursor.close();
-        db.close();
-        return finalizedTimestamp;
     }
 
     public void deleteWeighment(String serialNo) {
@@ -469,7 +376,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
         if (isMasterDataExists(db, type, value)) {
             db.close();
-            return -1;
+            return -1; // Already exists
         }
 
         ContentValues values = new ContentValues();
@@ -508,7 +415,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     public List<String> getMasterDataValuesByType(String type) {
         List<String> list = new ArrayList<>();
-        list.add("All");
+        list.add("All"); // Add default option
 
         List<MasterData> dataList = getAllMasterDataByType(type);
         for (MasterData data : dataList) {
@@ -521,11 +428,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public int updateMasterData(int id, String newValue) {
         SQLiteDatabase db = this.getWritableDatabase();
 
+        // Check if the new value already exists for this type
         MasterData oldData = getMasterDataById(id);
         if (oldData != null) {
             if (isMasterDataExists(db, oldData.getType(), newValue)) {
                 db.close();
-                return -1;
+                return -1; // Already exists
             }
         }
 
@@ -570,7 +478,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return exists;
     }
 
-    // ==================== DROPDOWN METHODS ====================
+    // ==================== DROPDOWN METHODS (Using Master Data) ====================
 
     public List<String> getUniqueVehicleTypes() {
         return getMasterDataValuesByType(TYPE_VEHICLE_TYPE);

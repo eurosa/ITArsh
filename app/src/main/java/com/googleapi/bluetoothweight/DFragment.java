@@ -603,7 +603,7 @@ public class DFragment extends Fragment {
             String dateSpaces = new String(new char[dateSpacesCount]).replace('\0', ' ');
 
             // LINE 1: Date and Serial (fixed)
-            outputStream.write(("             " + date + dateSpaces + entry.getSerialNo()).getBytes());
+            outputStream.write(("       " + date + dateSpaces + entry.getSerialNo()).getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
@@ -616,7 +616,7 @@ public class DFragment extends Fragment {
             vehicleSpacesCount = Math.max(3, vehicleSpacesCount); // Minimum 3 spaces
             String vehicleSpaces = new String(new char[vehicleSpacesCount]).replace('\0', ' ');
 
-            outputStream.write(("             " + vehicleNo + vehicleSpaces + serialNo).getBytes());
+            outputStream.write(("       " + vehicleNo + vehicleSpaces + serialNo).getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
@@ -630,7 +630,7 @@ public class DFragment extends Fragment {
             String materialSpaces = new String(new char[materialSpacesCount]).replace('\0', ' ');
 
             // Write material in double size
-            outputStream.write(("             " + material + materialSpaces).getBytes());
+            outputStream.write(("       " + material + materialSpaces).getBytes());
 
             // Switch to normal size for time
             outputStream.write(normalSize);
@@ -643,16 +643,57 @@ public class DFragment extends Fragment {
             outputStream.write("\n".getBytes());
 
             // Weight details (in double size)
-            outputStream.write(("                      " + formatNumber(entry.getGross()) + " kg").getBytes());
+            // Weight details (in double size)
+            if(WeightUtils.isPositiveWeight(formatNumber(entry.getGross()))){
+
+                outputStream.write(("             " + formatNumber(entry.getGross()) + " kg").getBytes());
+
+                // Switch to normal size for time
+                outputStream.write(normalSize);
+                outputStream.write(entry.getTimestamp().getBytes());
+
+                // Switch back to double size for remaining content
+                outputStream.write(doubleSize);
+
+            }else{
+
+                outputStream.write(("             " + formatNumber(entry.getGross()) + " kg").getBytes());
+            }
+
             outputStream.write("\n\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            outputStream.write(("                      " + formatNumber(entry.getTare()) + " kg").getBytes());
+
+
+            // Tare Weight with timestamp
+            long tareValue = WeightUtils.getWeightValue(entry.getTare());
+            long manualTareValue = WeightUtils.getWeightValue(entry.getManualTare());
+            boolean hasTare = (tareValue > 0 || manualTareValue > 0);
+
+            if (hasTare) {
+                String tareDisplay = manualTareValue > 0 ? entry.getManualTare() : entry.getTare();
+                outputStream.write(("             " + formatNumber(tareDisplay) + " kg").getBytes());
+
+                // Show finalized timestamp if entry is finalized
+                if (entry.isFinalized() && entry.getFinalizedTimestamp() != null && !entry.getFinalizedTimestamp().isEmpty()) {
+                    outputStream.write(normalSize);
+                    outputStream.write((" " + entry.getFinalizedTimestamp()).getBytes());
+                    outputStream.write(doubleSize);
+                }
+                // Otherwise show initial timestamp if available
+                else if (entry.getTimestamp() != null && !entry.getTimestamp().isEmpty()) {
+                    outputStream.write(normalSize);
+                    outputStream.write((" " + entry.getTimestamp()).getBytes());
+                    outputStream.write(doubleSize);
+                }
+            } else {
+                outputStream.write(("             " + formatNumber(entry.getTare()) + " kg").getBytes());
+            }
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
             outputStream.write("\n".getBytes());
 
-            outputStream.write(("                      " + formatNumber(entry.getNet()) + " kg").getBytes());
+            outputStream.write(("             " + formatNumber(entry.getNet()) + " kg").getBytes());
             outputStream.write("\n".getBytes());
 
             outputStream.write(normalSize);
