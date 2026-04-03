@@ -20,6 +20,7 @@ import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -791,7 +792,8 @@ public class AFragment extends Fragment {
             if (result > 0) {
                 Toast.makeText(getActivity(), "Entry #" + serialNo + " saved successfully",
                         Toast.LENGTH_SHORT).show();
-
+                 // Create text file and send email
+                createAndSendWeighmentFile(entry);
                 // Auto print after save using connected printer without popup
                 autoPrintToConnectedPrinter(entry);
 
@@ -802,6 +804,42 @@ public class AFragment extends Fragment {
                 Toast.makeText(getActivity(), "Error saving entry", Toast.LENGTH_SHORT).show();
             }
         }
+    }
+
+
+    // Method to create file and send email
+    private void createAndSendWeighmentFile(WeighmentEntry entry) {
+        // Create text file
+        File textFile = WeighmentExportHelper.createWeighmentTextFile(getContext(), entry);
+
+        if (textFile != null) {
+            // Show dialog to get email address
+            showEmailDialog(textFile, entry);
+        } else {
+            Toast.makeText(getContext(), "Failed to create file", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showEmailDialog(File file, WeighmentEntry entry) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle("Send Email");
+
+        final EditText input = new EditText(getContext());
+        input.setHint("Enter email address");
+        input.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        builder.setView(input);
+
+        builder.setPositiveButton("Send", (dialog, which) -> {
+            String emailAddress = input.getText().toString().trim();
+            if (!emailAddress.isEmpty()) {
+                WeighmentExportHelper.sendEmailWithAttachment(getContext(), file, emailAddress, entry);
+            } else {
+                Toast.makeText(getContext(), "Please enter email address", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
     }
 
     /**
