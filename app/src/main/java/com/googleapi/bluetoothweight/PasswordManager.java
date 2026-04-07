@@ -1,6 +1,7 @@
 package com.googleapi.bluetoothweight;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -392,12 +393,55 @@ public class PasswordManager {
      */
     private void checkAndProcessResetFile() {
         if (!hasStoragePermission()) {
-            new AlertDialog.Builder(activity)
-                    .setTitle("📁 Permission Required")
-                    .setMessage("Storage permission is needed to read reset files.")
-                    .setPositiveButton("Grant Permission", (dialog, which) -> requestStoragePermission())
-                    .setNegativeButton("Cancel", null)
-                    .show();
+            Dialog permissionDialog = new Dialog(activity);
+            permissionDialog.setTitle("📁 Permission Required");
+
+            LinearLayout layout = new LinearLayout(activity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(50, 30, 50, 30);
+
+            TextView message = new TextView(activity);
+            message.setText("Storage permission is needed to read reset files.");
+            message.setTextSize(16);
+            message.setPadding(0, 0, 0, 20);
+            layout.addView(message);
+
+            LinearLayout buttonLayout = new LinearLayout(activity);
+            buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
+            buttonLayout.setWeightSum(2);
+
+            Button positiveButton = new Button(activity);
+            positiveButton.setText("Grant Permission");
+            LinearLayout.LayoutParams positiveParams = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            positiveParams.setMargins(0, 0, 10, 0);
+            positiveButton.setLayoutParams(positiveParams);
+            positiveButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+            positiveButton.setTextColor(Color.WHITE);
+
+            Button negativeButton = new Button(activity);
+            negativeButton.setText("Cancel");
+            LinearLayout.LayoutParams negativeParams = new LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            negativeParams.setMargins(10, 0, 0, 0);
+            negativeButton.setLayoutParams(negativeParams);
+            negativeButton.setBackgroundColor(Color.parseColor("#F44336"));
+            negativeButton.setTextColor(Color.WHITE);
+
+            buttonLayout.addView(positiveButton);  // Grant Permission on LEFT
+            buttonLayout.addView(negativeButton);  // Cancel on RIGHT
+            layout.addView(buttonLayout);
+
+            permissionDialog.setContentView(layout);
+
+            positiveButton.setOnClickListener(v -> {
+                permissionDialog.dismiss();
+                requestStoragePermission();
+            });
+
+            negativeButton.setOnClickListener(v -> permissionDialog.dismiss());
+
+            permissionDialog.show();
             return;
         }
 
@@ -410,26 +454,94 @@ public class PasswordManager {
             // Found a valid reset code
             if (result.code.equals(getExpectedResetCode())) {
                 // Valid code - proceed with reset
-                new AlertDialog.Builder(activity)
-                        .setTitle("✅ Reset File Found")
-                        .setMessage("Valid reset file detected at:\n" + result.path +
-                                "\n\nDo you want to reset your password?")
-                        .setPositiveButton("Yes, Reset Password", (dialog, which) -> {
-                            // Clean up - delete the reset file
-                            deleteResetFiles();
-                            // Show new password dialog
-                            showNewPasswordDialog("file");
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show();
+                Dialog resetDialog = new Dialog(activity);
+                resetDialog.setTitle("✅ Reset File Found");
+
+                LinearLayout layout = new LinearLayout(activity);
+                layout.setOrientation(LinearLayout.VERTICAL);
+                layout.setPadding(50, 30, 50, 30);
+
+                TextView message = new TextView(activity);
+                message.setText("Valid reset file detected at:\n" + result.path +
+                        "\n\nDo you want to reset your password?");
+                message.setTextSize(16);
+                message.setPadding(0, 0, 0, 20);
+                layout.addView(message);
+
+                LinearLayout buttonLayout = new LinearLayout(activity);
+                buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
+                buttonLayout.setWeightSum(2);
+
+                Button positiveButton = new Button(activity);
+                positiveButton.setText("Yes, Reset Password");
+                LinearLayout.LayoutParams positiveParams = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+                positiveParams.setMargins(0, 0, 10, 0);
+                positiveButton.setLayoutParams(positiveParams);
+                positiveButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+                positiveButton.setTextColor(Color.WHITE);
+
+                Button negativeButton = new Button(activity);
+                negativeButton.setText("Cancel");
+                LinearLayout.LayoutParams negativeParams = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+                negativeParams.setMargins(10, 0, 0, 0);
+                negativeButton.setLayoutParams(negativeParams);
+                negativeButton.setBackgroundColor(Color.parseColor("#F44336"));
+                negativeButton.setTextColor(Color.WHITE);
+
+                buttonLayout.addView(positiveButton);  // Yes, Reset Password on LEFT
+                buttonLayout.addView(negativeButton);  // Cancel on RIGHT
+                layout.addView(buttonLayout);
+
+                resetDialog.setContentView(layout);
+
+                positiveButton.setOnClickListener(v -> {
+                    resetDialog.dismiss();
+                    // Clean up - delete the reset file
+                    deleteResetFiles();
+                    // Show new password dialog
+                    showNewPasswordDialog("file");
+                });
+
+                negativeButton.setOnClickListener(v -> resetDialog.dismiss());
+
+                resetDialog.show();
             } else {
-                new AlertDialog.Builder(activity)
-                        .setTitle("❌ Invalid Reset Code")
-                        .setMessage("Found file at:\n" + result.path +
-                                "\n\nExpected: " + getExpectedResetCode() +
-                                "\nFound: " + result.code)
-                        .setPositiveButton("OK", null)
-                        .show();
+                Dialog invalidDialog = new Dialog(activity);
+                invalidDialog.setTitle("❌ Invalid Reset Code");
+
+                LinearLayout layout = new LinearLayout(activity);
+                layout.setOrientation(LinearLayout.VERTICAL);
+                layout.setPadding(50, 30, 50, 30);
+
+                TextView message = new TextView(activity);
+                message.setText("Found file at:\n" + result.path +
+                        "\n\nExpected: " + getExpectedResetCode() +
+                        "\nFound: " + result.code);
+                message.setTextSize(16);
+                message.setPadding(0, 0, 0, 20);
+                layout.addView(message);
+
+                LinearLayout buttonLayout = new LinearLayout(activity);
+                buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+                Button okButton = new Button(activity);
+                okButton.setText("OK");
+                okButton.setLayoutParams(new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+                okButton.setBackgroundColor(Color.parseColor("#2196F3"));
+                okButton.setTextColor(Color.WHITE);
+
+                buttonLayout.addView(okButton);
+                layout.addView(buttonLayout);
+
+                invalidDialog.setContentView(layout);
+
+                okButton.setOnClickListener(v -> invalidDialog.dismiss());
+
+                invalidDialog.show();
             }
         } else {
             // No reset file found - show debug info
@@ -448,13 +560,41 @@ public class PasswordManager {
                 }
             }
 
-            new AlertDialog.Builder(activity)
-                    .setTitle("❌ No Reset File Found")
-                    .setMessage(debug.toString())
-                    //.setPositiveButton("Create File", (dialog, which) -> showCreateFileOptions())
-                    //.setNegativeButton("Instructions", (dialog, which) -> showResetFileInstructions())
-                    .setNeutralButton("Check Permissions", (dialog, which) -> checkStoragePermission())
-                    .show();
+            Dialog debugDialog = new Dialog(activity);
+            debugDialog.setTitle("❌ No Reset File Found");
+
+            LinearLayout layout = new LinearLayout(activity);
+            layout.setOrientation(LinearLayout.VERTICAL);
+            layout.setPadding(50, 30, 50, 30);
+
+            TextView message = new TextView(activity);
+            message.setText(debug.toString());
+            message.setTextSize(14);
+            message.setPadding(0, 0, 0, 20);
+            layout.addView(message);
+
+            LinearLayout buttonLayout = new LinearLayout(activity);
+            buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
+
+            Button neutralButton = new Button(activity);
+            neutralButton.setText("Check Permissions");
+            neutralButton.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+            neutralButton.setBackgroundColor(Color.parseColor("#FF9800"));
+            neutralButton.setTextColor(Color.WHITE);
+
+            buttonLayout.addView(neutralButton);
+            layout.addView(buttonLayout);
+
+            debugDialog.setContentView(layout);
+
+            neutralButton.setOnClickListener(v -> {
+                debugDialog.dismiss();
+                checkStoragePermission();
+            });
+
+            debugDialog.show();
         }
     }
 
@@ -985,26 +1125,72 @@ public class PasswordManager {
      */
 
     private void showNewPasswordDialog(String method) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-        builder.setTitle("Set New Password");
-        builder.setMessage("Enter your new admin password");
+        Dialog dialog = new Dialog(activity);
+        dialog.setTitle("Set New Password");
 
-        LinearLayout layout = new LinearLayout(activity);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(50, 20, 50, 20);
+        // Main layout
+        LinearLayout mainLayout = new LinearLayout(activity);
+        mainLayout.setOrientation(LinearLayout.VERTICAL);
+        mainLayout.setPadding(50, 30, 50, 30);
 
+        // Message text
+        TextView messageText = new TextView(activity);
+        messageText.setText("Enter your new admin password");
+        messageText.setTextSize(16);
+        messageText.setPadding(0, 0, 0, 20);
+        mainLayout.addView(messageText);
+
+        // New password field
         EditText newPassInput = new EditText(activity);
         newPassInput.setHint("New password (min 6 characters)");
         newPassInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        layout.addView(newPassInput);
+        newPassInput.setPadding(0, 10, 0, 10);
+        mainLayout.addView(newPassInput);
 
+        // Confirm password field
         EditText confirmInput = new EditText(activity);
         confirmInput.setHint("Confirm password");
         confirmInput.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        layout.addView(confirmInput);
+        confirmInput.setPadding(0, 10, 0, 10);
+        mainLayout.addView(confirmInput);
 
-        builder.setView(layout);
-        builder.setPositiveButton("Reset Password", (dialog, which) -> {
+        // Button layout (horizontal)
+        LinearLayout buttonLayout = new LinearLayout(activity);
+        buttonLayout.setOrientation(LinearLayout.HORIZONTAL);
+        buttonLayout.setPadding(0, 20, 0, 0);
+        buttonLayout.setWeightSum(2);
+
+        // Reset Password button (LEFT)
+        Button resetButton = new Button(activity);
+        resetButton.setText("Reset Password");
+        LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        resetParams.setMargins(0, 0, 10, 0);
+        resetButton.setLayoutParams(resetParams);
+        resetButton.setBackgroundColor(Color.parseColor("#4CAF50"));
+        resetButton.setTextColor(Color.WHITE);
+        resetButton.setPadding(20, 12, 20, 12);
+
+        // Cancel button (RIGHT)
+        Button cancelButton = new Button(activity);
+        cancelButton.setText("Cancel");
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        cancelParams.setMargins(10, 0, 0, 0);
+        cancelButton.setLayoutParams(cancelParams);
+        cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
+        cancelButton.setTextColor(Color.WHITE);
+        cancelButton.setPadding(20, 12, 20, 12);
+
+        buttonLayout.addView(resetButton);  // Reset Password on LEFT
+        buttonLayout.addView(cancelButton); // Cancel on RIGHT
+
+        mainLayout.addView(buttonLayout);
+
+        dialog.setContentView(mainLayout);
+
+        // Reset button click listener
+        resetButton.setOnClickListener(v -> {
             String newPass = newPassInput.getText().toString();
             String confirm = confirmInput.getText().toString();
 
@@ -1029,10 +1215,24 @@ public class PasswordManager {
             if (listener != null) {
                 listener.onPasswordResetSuccess();
             }
+
+            dialog.dismiss();
         });
 
-        builder.setNegativeButton("Cancel", null);
-        builder.show();
+        // Cancel button click listener
+        cancelButton.setOnClickListener(v -> dialog.dismiss());
+
+        // Enter key handler for confirm input
+        confirmInput.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN &&
+                    (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                resetButton.performClick();
+                return true;
+            }
+            return false;
+        });
+
+        dialog.show();
     }
 
     /**
