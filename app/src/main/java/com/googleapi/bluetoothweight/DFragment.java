@@ -1,5 +1,8 @@
 package com.googleapi.bluetoothweight;
 
+import static com.googleapi.bluetoothweight.WeightUtils.getWeightValue;
+import static com.googleapi.bluetoothweight.WeightUtils.isPositiveWeight;
+
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -644,7 +647,7 @@ public class DFragment extends Fragment {
 
             // Weight details (in double size)
             // Weight details (in double size)
-            if(WeightUtils.isPositiveWeight(formatNumber(entry.getGross()))){
+            if(isPositiveWeight(formatNumber(entry.getGross()))){
 
                 outputStream.write(("             " + formatNumber(entry.getGross()) + " kg").getBytes());
 
@@ -666,8 +669,8 @@ public class DFragment extends Fragment {
 
 
             // Tare Weight with timestamp
-            long tareValue = WeightUtils.getWeightValue(entry.getTare());
-            long manualTareValue = WeightUtils.getWeightValue(entry.getManualTare());
+            long tareValue = getWeightValue(entry.getTare());
+            long manualTareValue = getWeightValue(entry.getManualTare());
             boolean hasTare = (tareValue > 0 || manualTareValue > 0);
 
             if (hasTare) {
@@ -846,6 +849,9 @@ public class DFragment extends Fragment {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());
 
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        String time = timeFormat.format(new Date());
+
         SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
         String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
         String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
@@ -949,11 +955,53 @@ public class DFragment extends Fragment {
             outputStream.write(BOLD_OFF);
             outputStream.write(NEW_LINE);
 
-            // Weight details with numbers right-aligned
+            // Get timestamps (like dot matrix)
+            String entryTimestamp = entry.getTimestamp() != null && !entry.getTimestamp().isEmpty()
+                    ? entry.getTimestamp() : "";
+            String finalizedTimestamp = entry.getFinalizedTimestamp() != null && !entry.getFinalizedTimestamp().isEmpty()
+                    ? entry.getFinalizedTimestamp() : "";
+
+            // Weight calculations
+            long tareValue = getWeightValue(entry.getTare());
+            long manualTareValue = getWeightValue(entry.getManualTare());
+            boolean hasGross = isPositiveWeight(entry.getGross());
+            boolean hasTare = (tareValue > 0 || manualTareValue > 0);
+            String tareDisplay = (manualTareValue > 0 && manualTareValue != tareValue)
+                    ? entry.getManualTare() : entry.getTare();
+
+            // Determine which timestamp to show for tare
+            String tareTimestamp = "";
+            if (entry.isFinalized() && !finalizedTimestamp.isEmpty()) {
+                tareTimestamp = finalizedTimestamp;
+            } else if (!entryTimestamp.isEmpty()) {
+                tareTimestamp = entryTimestamp;
+            }
+
+            // ===== GROSS WEIGHT with timestamp =====
             outputStream.write(String.format("  %-16s %10s kg", "Gross Weight:", formatNumber(entry.getGross())).getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write(String.format("  %-16s %10s kg", "Tare Weight:", formatNumber(entry.getTare())).getBytes());
+
+            // Add gross timestamp if available (like dot matrix)
+            if (hasGross && entryTimestamp != null && !entryTimestamp.isEmpty()) {
+                outputStream.write(String.format("  %-16s %10s", "", entryTimestamp).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            // ===== TARE WEIGHT with timestamp =====
+            outputStream.write(String.format("  %-16s %10s kg", "Tare Weight:", formatNumber(tareDisplay)).getBytes());
             outputStream.write(NEW_LINE);
+
+            // Add tare timestamp if available (like dot matrix)
+            if (hasTare && !tareTimestamp.isEmpty()) {
+                outputStream.write(String.format("  %-16s %10s", "", tareTimestamp).getBytes());
+                outputStream.write(NEW_LINE);
+            }
+
+            // ===== MANUAL TARE (if present and different) =====
+            if (manualTareValue > 0 && manualTareValue != tareValue && !entry.getManualTare().equals("0")) {
+                outputStream.write(String.format("  %-16s %10s kg", "Manual Tare:", formatNumber(entry.getManualTare())).getBytes());
+                outputStream.write(NEW_LINE);
+            }
 
             // Separator
             outputStream.write("  ".getBytes());
@@ -1199,6 +1247,9 @@ public class DFragment extends Fragment {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());
 
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        String time = timeFormat.format(new Date());
+
         SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
         String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
         String field2 = prefs.getString("field_1", "123 Industrial Area, City - 123456");
@@ -1212,6 +1263,28 @@ public class DFragment extends Fragment {
         String grossStr = formatNumber(entry.getGross());
         String tareStr = formatNumber(entry.getTare());
         String netStr = formatNumber(entry.getNet());
+
+        // Get timestamps (like dot matrix)
+        String entryTimestamp = entry.getTimestamp() != null && !entry.getTimestamp().isEmpty()
+                ? entry.getTimestamp() : "";
+        String finalizedTimestamp = entry.getFinalizedTimestamp() != null && !entry.getFinalizedTimestamp().isEmpty()
+                ? entry.getFinalizedTimestamp() : "";
+
+        // Weight calculations
+        long tareValue = getWeightValue(entry.getTare());
+        long manualTareValue = getWeightValue(entry.getManualTare());
+        boolean hasGross = isPositiveWeight(entry.getGross());
+        boolean hasTare = (tareValue > 0 || manualTareValue > 0);
+        String tareDisplay = (manualTareValue > 0 && manualTareValue != tareValue)
+                ? entry.getManualTare() : entry.getTare();
+
+        // Determine which timestamp to show for tare
+        String tareTimestamp = "";
+        if (entry.isFinalized() && !finalizedTimestamp.isEmpty()) {
+            tareTimestamp = finalizedTimestamp;
+        } else if (!entryTimestamp.isEmpty()) {
+            tareTimestamp = entryTimestamp;
+        }
 
         StringBuilder ticket = new StringBuilder();
 
@@ -1236,8 +1309,31 @@ public class DFragment extends Fragment {
         ticket.append(repeat("-", lineLength)).append("\n");
         ticket.append("WEIGHT DETAILS:\n");
         ticket.append("\n");
+
+        // ===== GROSS WEIGHT with timestamp =====
         ticket.append(String.format("  %-16s %10s kg\n", "Gross Weight:", grossStr));
-        ticket.append(String.format("  %-16s %10s kg\n", "Tare Weight:", tareStr));
+
+        // Add gross timestamp if available (like dot matrix)
+        if (hasGross && entryTimestamp != null && !entryTimestamp.isEmpty()) {
+            ticket.append(String.format("  %-16s %10s\n", "", entryTimestamp));
+            ticket.append("\n");
+        }
+
+        // ===== TARE WEIGHT with timestamp =====
+        ticket.append(String.format("  %-16s %10s kg\n", "Tare Weight:", formatNumber(tareDisplay)));
+
+        // Add tare timestamp if available (like dot matrix)
+        if (hasTare && !tareTimestamp.isEmpty()) {
+            ticket.append(String.format("  %-16s %10s\n", "", tareTimestamp));
+            ticket.append("\n");
+        }
+
+        // ===== MANUAL TARE (if present and different) =====
+        if (manualTareValue > 0 && manualTareValue != tareValue && !entry.getManualTare().equals("0")) {
+            ticket.append(String.format("  %-16s %10s kg\n", "Manual Tare:", formatNumber(entry.getManualTare())));
+            ticket.append("\n");
+        }
+
         ticket.append("  " + repeat("-", lineLength - 4)).append("\n");
         ticket.append(String.format("  %-16s %10s kg\n", "NET WEIGHT:", netStr));
         ticket.append("  " + repeat("-", lineLength - 4)).append("\n\n");

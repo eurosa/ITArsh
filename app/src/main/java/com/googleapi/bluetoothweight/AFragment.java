@@ -1513,62 +1513,183 @@ public class AFragment extends Fragment {
 
     private String buildHTMLTicket(WeighmentEntry entry, String field1, String field2,
                                    String field3, String dateTime) {
-        return "<!DOCTYPE html>" +
-                "<html>" +
-                "<head>" +
-                "<style>" +
-                "body { font-family: 'Courier New', monospace; max-width: 300px; margin: 0 auto; }" +
-                ".field1 { text-align: center; font-size: 24px; font-weight: bold; margin: 10px 0; }" +
-                ".field2 { text-align: center; font-size: 16px; }" +
-                ".field3 { text-align: center; font-size: 16px; margin-bottom: 15px; }" +
-                ".line { text-align: center; font-size: 16px; }" +
-                "table { width: 100%; }" +
-                "td { padding: 2px 5px; }" +
-                ".right { text-align: right; }" +
-                ".bold { font-weight: bold; }" +
-                "</style>" +
-                "</head>" +
-                "<body>" +
-                "<div class='field1'>" + field1 + "</div>" +
-                "<div class='field2'>" + field2 + "</div>" +
-                "<div class='field3'>" + field3 + "</div>" +
-                "<div class='line'>========================</div>" +
-                "<table>" +
-                "<tr><td>Ticket #:</td><td class='right'>" + entry.getSerialNo() + "</td></tr>" +
-                "<tr><td>Date:</td><td class='right'>" + dateTime + "</td></tr>" +
-                "</table><hr/>" +
-                "<div class='bold'>VEHICLE DETAILS</div>" +
-                "<table>" +
-                "<tr><td>Vehicle No:</td><td class='right'>" + entry.getVehicleNo() + "</td></tr>" +
-                "<tr><td>Type:</td><td class='right'>" + entry.getVehicleType() + "</td></tr>" +
-                "<tr><td>Material:</td><td class='right'>" + entry.getMaterial() + "</td></tr>" +
-                "<tr><td>Party:</td><td class='right'>" + entry.getParty() + "</td></tr>" +
-                (entry.getCharge() != null && !entry.getCharge().isEmpty() ?
-                        "<tr><td>Charge:</td><td class='right'>" + entry.getCharge() + "</td></tr>" : "") +
-                "</table><hr/>" +
-                "<div class='bold'>WEIGHT DETAILS</div>" +
-                "<table>" +
-                "<tr><td>Gross Weight:</td><td class='right'>" + formatNumber(entry.getGross()) + " kg</td></tr>" +
-                "<tr><td>Tare Weight:</td><td class='right'>" + formatNumber(entry.getTare()) + " kg</td></tr>" +
-                (!entry.getManualTare().equals("0") ?
-                        "<tr><td>Manual Tare:</td><td class='right'>" + formatNumber(entry.getManualTare()) + " kg</td></tr>" : "") +
-                "</table>" +
-                "<div style='border-top:1px solid #000; margin:5px 0;'></div>" +
-                "<table><tr><td class='bold'>NET WEIGHT:</td><td class='right bold'>" +
-                formatNumber(entry.getNet()) + " kg</td></tr></table>" +
-                "<div style='border-top:1px solid #000; margin:5px 0;'></div>" +
-                "<hr/><table><tr><td>Operator:</td><td class='right'>" + getOperatorName() + "</td></tr></table>" +
-                "<p>Signature: __________________</p>" +
-                "<div style='text-align:center; margin-top:20px;'>" +
-                "***** THANK YOU *****<br/>" +
-                "*** This is computer generated ***<br/>" +
-                "*** No signature required ***" +
-                "</div></body></html>";
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+
+        String date = dateFormat.format(new Date());
+        String time = timeFormat.format(new Date());
+
+        // Format timestamps properly
+        String entryTimestamp = entry.getTimestamp() != null && !entry.getTimestamp().isEmpty()
+                ? entry.getTimestamp() : time;
+        String finalizedTimestamp = entry.getFinalizedTimestamp() != null && !entry.getFinalizedTimestamp().isEmpty()
+                ? entry.getFinalizedTimestamp() : "";
+
+        // Check weight values
+        long tareValue = getWeightValue(entry.getTare());
+        long manualTareValue = getWeightValue(entry.getManualTare());
+        boolean hasGross = isPositiveWeight(entry.getGross());
+        boolean hasTare = (tareValue > 0 || manualTareValue > 0);
+        String tareDisplay = (manualTareValue > 0 && manualTareValue != tareValue)
+                ? entry.getManualTare() : entry.getTare();
+
+        // Determine which timestamp to show for tare
+        String tareTimestamp = "";
+        if (entry.isFinalized() && !finalizedTimestamp.isEmpty()) {
+            tareTimestamp = finalizedTimestamp;
+        } else if (!entryTimestamp.isEmpty()) {
+            tareTimestamp = entryTimestamp;
+        }
+
+        StringBuilder html = new StringBuilder();
+
+        html.append("<!DOCTYPE html>\n")
+                .append("<html>\n")
+                .append("<head>\n")
+                .append("<meta charset='UTF-8'>\n")
+                .append("<style>\n")
+                .append("body { font-family: 'Courier New', monospace; max-width: 350px; margin: 0 auto; padding: 20px; }\n")
+                .append(".field1 { text-align: center; font-size: 24px; font-weight: bold; margin: 10px 0; color: #2196F3; }\n")
+                .append(".field2 { text-align: center; font-size: 16px; }\n")
+                .append(".field3 { text-align: center; font-size: 16px; margin-bottom: 15px; }\n")
+                .append(".header-line { text-align: center; font-size: 16px; margin: 10px 0; }\n")
+                .append(".separator { border-top: 1px dashed #000; margin: 10px 0; }\n")
+                .append(".double-separator { border-top: 2px solid #000; margin: 10px 0; }\n")
+                .append("table { width: 100%; margin: 5px 0; }\n")
+                .append("td { padding: 4px 5px; }\n")
+                .append(".right { text-align: right; }\n")
+                .append(".left { text-align: left; }\n")
+                .append(".center { text-align: center; }\n")
+                .append(".bold { font-weight: bold; }\n")
+                .append(".weight-value { font-size: 18px; font-weight: bold; color: #4CAF50; }\n")
+                .append(".net-weight { font-size: 22px; font-weight: bold; color: #F44336; }\n")
+                .append(".timestamp { font-size: 12px; color: #666; }\n")
+                .append(".footer { text-align: center; margin-top: 20px; font-size: 12px; }\n")
+                .append("</style>\n")
+                .append("</head>\n")
+                .append("<body>\n");
+
+        // ===== HEADER SECTION =====
+        html.append("<div class='field1'>").append(field1).append("</div>\n")
+                .append("<div class='field2'>").append(field2).append("</div>\n")
+                .append("<div class='field3'>").append(field3).append("</div>\n")
+                .append("<div class='header-line'>========================================</div>\n");
+
+        // ===== TICKET NUMBER AND DATE =====
+        html.append("<table>\n")
+                .append("<tr><td class='left bold'>Ticket #:</td><td class='right'>").append(entry.getSerialNo()).append("</td></tr>\n")
+                .append("<tr><td class='left bold'>Date:</td><td class='right'>").append(dateTime).append("</td></tr>\n")
+                .append("</table>\n")
+                .append("<div class='separator'></div>\n");
+
+        // ===== VEHICLE DETAILS =====
+        html.append("<div class='bold'>VEHICLE DETAILS</div>\n")
+                .append("<table>\n")
+                .append("<tr><td class='left'>Vehicle No:</td><td class='right'>").append(entry.getVehicleNo()).append("</td></tr>\n")
+                .append("<tr><td class='left'>Type:</td><td class='right'>").append(entry.getVehicleType()).append("</td></tr>\n")
+                .append("<tr><td class='left'>Material:</td><td class='right'>").append(entry.getMaterial()).append("</td></tr>\n")
+                .append("<tr><td class='left'>Party:</td><td class='right'>").append(entry.getParty()).append("</td></tr>\n");
+
+        if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
+            html.append("<tr><td class='left'>Charge:</td><td class='right'>").append(entry.getCharge()).append("</td></tr>\n");
+        }
+
+        html.append("</table>\n")
+                .append("<div class='separator'></div>\n");
+
+        // ===== WEIGHT DETAILS HEADER =====
+        html.append("<div class='bold center'>WEIGHT DETAILS</div>\n")
+                .append("<div class='separator'></div>\n");
+
+        // ===== GROSS WEIGHT WITH TIMESTAMP =====
+        html.append("<table>\n")
+                .append("<tr><td class='left bold'>GROSS WEIGHT:</td>\n")
+                .append("<td class='right'>").append(formatNumber(entry.getGross())).append(" kg</td></tr>\n");
+
+        // Add gross timestamp if available
+        if (hasGross && entryTimestamp != null && !entryTimestamp.isEmpty()) {
+            html.append("<tr><td></td><td class='right timestamp'>").append(entryTimestamp).append("</td></tr>\n");
+        }
+
+        // ===== TARE WEIGHT WITH TIMESTAMP =====
+        html.append("<tr><td class='left bold'>TARE WEIGHT:</td>\n")
+                .append("<td class='right'>").append(formatNumber(tareDisplay)).append(" kg</td></tr>\n");
+
+        // Add tare timestamp if available
+        if (hasTare && !tareTimestamp.isEmpty()) {
+            html.append("<tr><td></td><td class='right timestamp'>").append(tareTimestamp).append("</td></tr>\n");
+        }
+
+        // ===== MANUAL TARE (if present and different) =====
+        if (manualTareValue > 0 && manualTareValue != tareValue) {
+            html.append("<tr><td class='left'>MANUAL TARE:</td>\n")
+                    .append("<td class='right'>").append(formatNumber(entry.getManualTare())).append(" kg</td></tr>\n");
+        }
+
+        html.append("</table>\n")
+                .append("<div class='separator'></div>\n");
+
+        // ===== NET WEIGHT (Prominent) =====
+        html.append("<div class='double-separator'></div>\n")
+                .append("<table>\n")
+                .append("<tr><td class='left bold net-weight'>NET WEIGHT:</td>\n")
+                .append("<td class='right bold net-weight'>").append(formatNumber(entry.getNet())).append(" kg</td></tr>\n")
+                .append("</table>\n")
+                .append("<div class='double-separator'></div>\n");
+
+        // ===== SIGNATURE AREA =====
+        html.append("<div class='separator'></div>\n")
+                .append("<table>\n")
+                .append("<tr><td class='left'>Operator:</td><td class='right'>").append(getOperatorName()).append("</td></tr>\n")
+                .append("<tr><td class='left'>Signature:</td><td class='right'>__________________</td></tr>\n")
+                .append("</table>\n")
+                .append("<div class='separator'></div>\n");
+
+        // ===== FOOTER =====
+        html.append("<div class='footer'>\n")
+                .append("***** THANK YOU *****<br/>\n")
+                .append("*** This is computer generated ***<br/>\n")
+                .append("*** No signature required ***\n")
+                .append("</div>\n");
+
+        html.append("</body>\n")
+                .append("</html>");
+
+        return html.toString();
     }
+
+    // Helper methods
+    private boolean isPositiveWeight(String weight) {
+        try {
+            long value = Long.parseLong(weight.replace(",", ""));
+            return value > 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private long getWeightValue(String weight) {
+        try {
+            return Long.parseLong(weight.replace(",", ""));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+
+
+
 
     private byte[] buildPCLTicketBytesPlain(WeighmentEntry entry) {
         SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault());
         String dateTime = sdf.format(new Date());
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+
+        String date = dateFormat.format(new Date());
+        String time = timeFormat.format(new Date());
 
         SharedPreferences prefs = requireContext().getSharedPreferences("MyAppPrefs", Context.MODE_PRIVATE);
         String field1 = prefs.getString("field_0", "MY WEIGHBRIDGE COMPANY");
@@ -1601,10 +1722,6 @@ public class AFragment extends Fragment {
         byte[] LINE_FEED_1 = new byte[]{0x1B, 0x64, 0x01}; // Feed 1 line
         byte[] LINE_FEED_2 = new byte[]{0x1B, 0x64, 0x02}; // Feed 2 lines
 
-        // For thermal printers, each line is typically about 4-4.5mm
-        // 30mm ≈ 7-8 lines
-        // 150mm ≈ 35-37 lines from top of paper
-
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         try {
@@ -1612,101 +1729,170 @@ public class AFragment extends Fragment {
             outputStream.write(ESC);
             outputStream.write("@".getBytes());
 
-            // === POSITION 1: 30mm from top (for serial no and date) ===
-            // Move to 30mm from top (approximately 7-8 lines)
-            outputStream.write(ESC);
-            outputStream.write(new byte[]{0x64, 0x07}); // Feed 7 lines (≈28-30mm)
+            // ===== TOP MARGIN =====
+            outputStream.write(LINE_FEED_2);
+            outputStream.write(LINE_FEED_2);
+            outputStream.write(LINE_FEED_2);
 
-
-
-            // Ticket number and date at 30mm position
+            // ===== COMPANY HEADER (Centered) =====
             outputStream.write(ALIGN_CENTER);
+            outputStream.write(FONT_DOUBLE_BOTH);
             outputStream.write(BOLD_ON);
-            outputStream.write(("TICKET NO: " + entry.getSerialNo()).getBytes());
+            outputStream.write(field1.getBytes("UTF-8"));
             outputStream.write(NEW_LINE);
-            outputStream.write(("DATE: " + dateTime).getBytes());
+            outputStream.write(FONT_NORMAL);
+            outputStream.write(field2.getBytes("UTF-8"));
+            outputStream.write(NEW_LINE);
+            outputStream.write(field3.getBytes("UTF-8"));
+            outputStream.write(NEW_LINE);
             outputStream.write(BOLD_OFF);
             outputStream.write(NEW_LINE);
 
+            // ===== SEPARATOR =====
+            outputStream.write(repeat("=", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
 
-            // Vehicle details (still at same 30mm position or slightly below)
+            // ===== DATE AND SERIAL NUMBER (Like dot matrix format) =====
             outputStream.write(ALIGN_LEFT);
-            outputStream.write(("Vehicle No: " + entry.getVehicleNo()).getBytes());
+            outputStream.write(BOLD_ON);
+            outputStream.write(String.format("%-20s %s", "TICKET NO:", entry.getSerialNo()).getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write(("Vehicle Type: " + entry.getVehicleType()).getBytes());
+            outputStream.write(String.format("%-20s %s", "DATE:", dateTime).getBytes());
+            outputStream.write(BOLD_OFF);
             outputStream.write(NEW_LINE);
-            outputStream.write(("Material: " + entry.getMaterial()).getBytes());
+            outputStream.write(repeat("-", pageWidth).getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write(("Party: " + entry.getParty()).getBytes());
+            outputStream.write(NEW_LINE);
+
+            // ===== VEHICLE DETAILS =====
+            outputStream.write(BOLD_ON);
+            outputStream.write("VEHICLE DETAILS:".getBytes());
+            outputStream.write(BOLD_OFF);
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Vehicle No:", entry.getVehicleNo()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Type:", entry.getVehicleType()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Material:", entry.getMaterial()).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(String.format("  %-16s %s", "Party:", entry.getParty()).getBytes());
             outputStream.write(NEW_LINE);
 
             if (entry.getCharge() != null && !entry.getCharge().isEmpty()) {
-                outputStream.write(("Charge: " + entry.getCharge()).getBytes());
+                outputStream.write(String.format("  %-16s %s", "Charge:", entry.getCharge()).getBytes());
                 outputStream.write(NEW_LINE);
             }
-
-            // === POSITION 2: 150mm from top ===
-            // Calculate lines needed: Current position is about 30mm + 10 lines (≈70mm)
-            // Need to move additional 80mm (≈20 lines)
-            outputStream.write(ESC);
-            outputStream.write(new byte[]{0x64, 0x14}); // Feed 20 lines (≈80mm)
-
-            // Add a separator line
-            outputStream.write("========================================".getBytes());
             outputStream.write(NEW_LINE);
+            outputStream.write(repeat("-", pageWidth).getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // ===== WEIGHT DETAILS HEADER =====
             outputStream.write(ALIGN_CENTER);
             outputStream.write(BOLD_ON);
             outputStream.write("WEIGHT DETAILS".getBytes());
             outputStream.write(BOLD_OFF);
             outputStream.write(NEW_LINE);
-            outputStream.write("========================================".getBytes());
             outputStream.write(NEW_LINE);
 
-            // Weight details with proper formatting
+            // ===== GROSS WEIGHT =====
             outputStream.write(ALIGN_LEFT);
-            outputStream.write(String.format("%-15s %10s kg", "GROSS:", formatNumber(entry.getGross())).getBytes());
-            outputStream.write(NEW_LINE);
-            outputStream.write(String.format("%-15s %10s kg", "TARE:", formatNumber(entry.getTare())).getBytes());
+            outputStream.write(String.format("  %-16s", "GROSS WEIGHT:").getBytes());
+
+            // Check if gross has value (positive weight)
+            if (WeightUtils.isPositiveWeight(formatNumber(entry.getGross()))) {
+                outputStream.write(String.format("%10s kg", formatNumber(entry.getGross())).getBytes());
+
+                // Add timestamp if available (like dot matrix format)
+                if (entry.getTimestamp() != null && !entry.getTimestamp().isEmpty()) {
+                    outputStream.write(FONT_NORMAL);
+                    outputStream.write((" " + entry.getTimestamp()).getBytes());
+                    outputStream.write(FONT_NORMAL);
+                }
+            } else {
+                outputStream.write(String.format("%10s kg", formatNumber(entry.getGross())).getBytes());
+            }
             outputStream.write(NEW_LINE);
 
-            // Manual tare if present
-            if (!entry.getManualTare().equals("0")) {
-                outputStream.write(String.format("%-15s %10s kg", "MANUAL TARE:", formatNumber(entry.getManualTare())).getBytes());
+            // ===== TARE WEIGHT (with manual tare handling) =====
+            outputStream.write(String.format("  %-16s", "TARE WEIGHT:").getBytes());
+
+            long tareValue = WeightUtils.getWeightValue(entry.getTare());
+            long manualTareValue = WeightUtils.getWeightValue(entry.getManualTare());
+            boolean hasTare = (tareValue > 0 || manualTareValue > 0);
+
+            if (hasTare) {
+                String tareDisplay = manualTareValue > 0 ? entry.getManualTare() : entry.getTare();
+                outputStream.write(String.format("%10s kg", formatNumber(tareDisplay)).getBytes());
+
+                // Add timestamp based on finalized status
+                if (entry.isFinalized() && entry.getFinalizedTimestamp() != null && !entry.getFinalizedTimestamp().isEmpty()) {
+                    outputStream.write(FONT_NORMAL);
+                    outputStream.write((" " + entry.getFinalizedTimestamp()).getBytes());
+                    outputStream.write(FONT_NORMAL);
+                } else if (entry.getTimestamp() != null && !entry.getTimestamp().isEmpty()) {
+                    outputStream.write(FONT_NORMAL);
+                    outputStream.write((" " + entry.getTimestamp()).getBytes());
+                    outputStream.write(FONT_NORMAL);
+                }
+            } else {
+                outputStream.write(String.format("%10s kg", formatNumber(entry.getTare())).getBytes());
+            }
+            outputStream.write(NEW_LINE);
+
+            // ===== MANUAL TARE (if present and different from tare) =====
+            if (manualTareValue > 0 && manualTareValue != tareValue) {
+                outputStream.write(String.format("  %-16s", "MANUAL TARE:").getBytes());
+                outputStream.write(String.format("%10s kg", formatNumber(entry.getManualTare())).getBytes());
                 outputStream.write(NEW_LINE);
             }
 
-            outputStream.write("----------------------------------------".getBytes());
+            // ===== SEPARATOR =====
+            outputStream.write("  ".getBytes());
+            outputStream.write(repeat("-", pageWidth - 4).getBytes());
             outputStream.write(NEW_LINE);
 
-            // ===== NET WEIGHT - Bold and larger font =====
+            // ===== NET WEIGHT (Double size and bold, like dot matrix) =====
             outputStream.write(ALIGN_CENTER);
-            outputStream.write(FONT_DOUBLE_BOTH);  // Double height & width for net weight
+            outputStream.write(FONT_DOUBLE_HEIGHT);
             outputStream.write(BOLD_ON);
-            outputStream.write(String.format("NET: %s kg", formatNumber1(entry.getNet())).getBytes());
+            outputStream.write(String.format("NET WEIGHT: %s kg", formatNumber(entry.getNet())).getBytes());
             outputStream.write(NEW_LINE);
             outputStream.write(FONT_NORMAL);
             outputStream.write(BOLD_OFF);
+            outputStream.write(NEW_LINE);
 
-            // Add some space before footer
+            // ===== BOTTOM SEPARATOR =====
+            outputStream.write(repeat("=", pageWidth).getBytes());
             outputStream.write(NEW_LINE);
             outputStream.write(NEW_LINE);
 
-            // Footer with operator details (matching the image)
+            // ===== SIGNATURE AREA =====
             outputStream.write(ALIGN_LEFT);
-            outputStream.write("----------------------------------------".getBytes());
+            outputStream.write(repeat("-", pageWidth).getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write("OPERATOR SIGN: ___________".getBytes());
+            outputStream.write(String.format("Operator: %s", getOperatorName()).getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write("KEY NO: ___________".getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write(("TIME: " + dateTime.substring(dateTime.indexOf(" ") + 1)).getBytes());
+            outputStream.write("Signature: __________________".getBytes());
+            outputStream.write(NEW_LINE);
             outputStream.write(NEW_LINE);
 
-            // Service info from image
-            outputStream.write("Service: 24/7 Service".getBytes());
+            // ===== FOOTER =====
+            outputStream.write(ALIGN_CENTER);
+            outputStream.write("***** THANK YOU *****".getBytes());
             outputStream.write(NEW_LINE);
-            outputStream.write("Mobile: 7906353983, 8800684273".getBytes());
+            outputStream.write("*** This is computer generated ***".getBytes());
             outputStream.write(NEW_LINE);
+            outputStream.write("*** No signature required ***".getBytes());
+            outputStream.write(NEW_LINE);
+            outputStream.write(NEW_LINE);
+
+            // ===== EXTRA LINES FOR PAPER CUTTING =====
+            for (int i = 0; i < 10; i++) {
+                outputStream.write(NEW_LINE);
+            }
 
             // Cut paper
             outputStream.write(GS);

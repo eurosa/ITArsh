@@ -1994,7 +1994,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         cancelParams.setMargins(10, 0, 0, 0);
-        cancelButton.setLayoutParams(cancelParams);
+        cancelButton.setLayoutParams(cancelParams); 
         cancelButton.setBackgroundColor(Color.parseColor("#F44336"));
         cancelButton.setTextColor(Color.WHITE);
         cancelButton.setPadding(20, 12, 20, 12);
