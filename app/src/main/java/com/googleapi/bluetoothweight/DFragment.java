@@ -152,13 +152,14 @@ public class DFragment extends Fragment {
         // Make serialEditText non-editable (will be populated from search)
         serialEditText.setFocusable(false);
         serialEditText.setClickable(false);
+        searchSerialEditText.setClickable(true);
 
         // Setup focus for buttons
         button4a.setFocusable(true);
         button4a.setFocusableInTouchMode(true);
         button5a.setFocusable(true);
         button5a.setFocusableInTouchMode(true);
-
+        searchSerialEditText.requestFocus();
         // Set IME options
         searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
 
@@ -1596,6 +1597,24 @@ public class DFragment extends Fragment {
     public void onResume() {
         super.onResume();
         searchSerialEditText.requestFocus();
+        // Place cursor at the end
+        // Method 1: Request focus immediately
+      //  boolean immediateFocus = searchSerialEditText.requestFocus();
+       // Log.d("BFragment", "Immediate focus result: " + immediateFocus);
+
+        // Method 2: Request focus with delay (more reliable)
+        searchSerialEditText.postDelayed(() -> {
+            if (isAdded() && searchSerialEditText != null) {
+                boolean delayedFocus = searchSerialEditText.requestFocus();
+                Log.d("BFragment", "Delayed focus result: " + delayedFocus);
+
+                if (delayedFocus) {
+                    // Place cursor at the end of existing text
+                    String existingText = searchSerialEditText.getText().toString();
+                    searchSerialEditText.setSelection(existingText.length());
+                }
+            }
+        }, 100);
         refreshAllAdapters();
         setFormFieldsNonEditable();
 

@@ -155,9 +155,10 @@ public class BFragment extends Fragment {
         button4a.setText("Finalize");
 
         // Make serialEditText non-editable (will be populated from search)
+        searchSerialEditText.setFocusable(true);
         serialEditText.setFocusable(false);
         serialEditText.setClickable(false);
-
+        searchSerialEditText.requestFocus();
         // Initially disable all form fields until search
         setFormFieldsEnabled(false);
         isEntryFinalized = false;
@@ -167,9 +168,9 @@ public class BFragment extends Fragment {
         button4a.setFocusableInTouchMode(true);
 
         // Set IME options
-        searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
-        grossEditText.setImeOptions(EditorInfo.IME_ACTION_NEXT);
-        tareEditText.setImeOptions(EditorInfo.IME_ACTION_DONE);
+     //   searchSerialEditText.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+       // grossEditText.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+      //  tareEditText.setImeOptions(EditorInfo.IME_ACTION_DONE);
     }
 
     private void setupDropdownAdapters() {
@@ -410,7 +411,7 @@ public class BFragment extends Fragment {
      */
     private void setupSearchFunctionality() {
         // Clear any existing listeners
-        searchSerialEditText.setOnEditorActionListener(null);
+     /*   searchSerialEditText.setOnEditorActionListener(null);
         searchSerialEditText.setOnKeyListener(null);
 
         // Editor action listener for soft keyboard
@@ -427,7 +428,7 @@ public class BFragment extends Fragment {
             }
             return false;
         });
-
+*/
         // Hardware key listener for physical Enter key
         searchSerialEditText.setOnKeyListener((v, keyCode, event) -> {
             if (keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
@@ -591,8 +592,8 @@ public class BFragment extends Fragment {
         grossEditText.setAlpha(1.0f);
         grossEditText.requestFocus();
 
-        InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(grossEditText, InputMethodManager.SHOW_IMPLICIT);
+      //  InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+       // imm.showSoftInput(grossEditText, InputMethodManager.SHOW_IMPLICIT);
     }
 
     private void disableGrossEditText() {
@@ -663,9 +664,9 @@ public class BFragment extends Fragment {
                     @Override
                     public void run() {
                         materialSpinner.requestFocus();
-                        InputMethodManager keyboard = (InputMethodManager) getActivity()
-                                .getSystemService(Context.INPUT_METHOD_SERVICE);
-                        keyboard.showSoftInput(materialSpinner, InputMethodManager.SHOW_IMPLICIT);
+                        //InputMethodManager keyboard = (InputMethodManager) getActivity()
+                         //       .getSystemService(Context.INPUT_METHOD_SERVICE);
+                       // keyboard.showSoftInput(materialSpinner, InputMethodManager.SHOW_IMPLICIT);
                     }
                 }, 200);
             }
@@ -2012,9 +2013,27 @@ public class BFragment extends Fragment {
     public void onResume() {
         super.onResume();
         searchSerialEditText.requestFocus();
+        // Method 1: Request focus immediately
+      //  boolean immediateFocus = searchSerialEditText.requestFocus();
+       // Log.d("BFragment", "Immediate focus result: " + immediateFocus);
+
+        // Method 2: Request focus with delay (more reliable)
+        searchSerialEditText.postDelayed(() -> {
+            if (isAdded() && searchSerialEditText != null) {
+                boolean delayedFocus = searchSerialEditText.requestFocus();
+                Log.d("BFragment", "Delayed focus result: " + delayedFocus);
+
+                if (delayedFocus) {
+                    // Place cursor at the end of existing text
+                    String existingText = searchSerialEditText.getText().toString();
+                    searchSerialEditText.setSelection(existingText.length());
+                }
+            }
+        }, 100);
         // Reset finalized state when fragment resumes
         isEntryFinalized = false;
         setFormFieldsEnabled(false);
+
         refreshAllAdapters();
     }
 }

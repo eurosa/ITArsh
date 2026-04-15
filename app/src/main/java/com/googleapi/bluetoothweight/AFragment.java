@@ -27,6 +27,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebView;
 import android.widget.AdapterView;
@@ -185,6 +186,8 @@ public class AFragment extends Fragment {
         // Make serialEditText non-editable (auto-generated)
         serialEditText.setFocusable(false);
         serialEditText.setClickable(false);
+        vehicleNoSpinner.setFocusable(true);
+        vehicleNoSpinner.requestFocus();
 
         // Set next focus IDs for buttons
         button4a.setNextFocusDownId(R.id.button5a);
@@ -511,7 +514,7 @@ public class AFragment extends Fragment {
         manualEditText.requestFocus();
 
         InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(manualEditText, InputMethodManager.SHOW_IMPLICIT);
+       // imm.showSoftInput(manualEditText, InputMethodManager.SHOW_IMPLICIT);
     }
 
     private void disableManualEditText() {
@@ -671,8 +674,8 @@ public class AFragment extends Fragment {
     private void showKeyboard(EditText editText) {
         if (getActivity() != null) {
             editText.requestFocus();
-            InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT);
+           // InputMethodManager imm = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
+           // imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT);
         }
     }
 
@@ -820,7 +823,7 @@ public class AFragment extends Fragment {
         }
     }
 
-    private void showEmailDialog(File file, WeighmentEntry entry) {
+   /* private void showEmailDialog(File file, WeighmentEntry entry) {
         AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
         builder.setTitle("Send Email");
 
@@ -840,6 +843,31 @@ public class AFragment extends Fragment {
 
         builder.setNegativeButton("Cancel", null);
         builder.show();
+    }*/
+
+    private void showEmailDialog(File file, WeighmentEntry entry) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+        builder.setTitle("Send Email");
+
+        final EditText input = new EditText(getContext());
+        input.setHint("Enter email address");
+        input.setInputType(InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        builder.setView(input);
+
+        builder.setPositiveButton("Send", (dialog, which) -> {
+            String emailAddress = input.getText().toString().trim();
+            if (!emailAddress.isEmpty()) {
+                WeighmentExportHelper.sendEmailWithAttachment(getContext(), file, emailAddress, entry);
+            } else {
+                Toast.makeText(getContext(), "Please enter email address", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        dialog.show();
     }
 
     /**
@@ -2349,9 +2377,35 @@ public class AFragment extends Fragment {
         super.onResume();
         generateNextSerialNumber();
         refreshAllAdapters();
-
+        requestFocusForVehicleNoSpinner();
         if (mainActivity != null) {
             updatePrinterStatus(mainActivity.isPrinterConnected(), mainActivity.getConnectedPrinterName());
         }
+    }
+
+    private void requestFocusForVehicleNoSpinner() {
+        if (vehicleNoSpinner == null) return;
+
+        // Clear focus from any current view
+        if (getActivity() != null && getActivity().getCurrentFocus() != null) {
+            getActivity().getCurrentFocus().clearFocus();
+        }
+
+        // Make sure it can receive focus
+        vehicleNoSpinner.setFocusable(true);
+        vehicleNoSpinner.setFocusableInTouchMode(true);
+        vehicleNoSpinner.setClickable(true);
+
+        // Try immediate focus
+        boolean immediateFocus = vehicleNoSpinner.requestFocus();
+        Log.d("AFragment", "Immediate focus result: " + immediateFocus);
+
+        // Also try delayed focus for reliability
+        vehicleNoSpinner.postDelayed(() -> {
+            if (isAdded() && vehicleNoSpinner != null) {
+                boolean delayedFocus = vehicleNoSpinner.requestFocus();
+                Log.d("AFragment", "Delayed focus result: " + delayedFocus);
+            }
+        }, 100);
     }
 }

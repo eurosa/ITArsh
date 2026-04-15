@@ -37,8 +37,10 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -169,6 +171,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
     private long lastUsbConnectionAttempt = 0;
     private AtomicBoolean isUsbAutoConnectAttempted = new AtomicBoolean(false);
     private AtomicBoolean isUsbPermissionRequested = new AtomicBoolean(false);
+    private Toolbar toolbar;
 
     // Track current state
     private enum FragmentState {
@@ -321,7 +324,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
     }
 
     private void setupToolbar() {
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
         Drawable drawable = toolbar.getOverflowIcon();
@@ -871,7 +874,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         }
     }
 
-    void hideFragmentAndShowCounter() {
+ /*   void hideFragmentAndShowCounter() {
         if (visibleFragment != null) {
             getSupportFragmentManager().beginTransaction()
                     .hide(visibleFragment)
@@ -887,7 +890,90 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
             updateUIBasedOnState();
         }
+    }*/
+
+    void hideFragmentAndShowCounter() {
+        if (visibleFragment != null) {
+            getSupportFragmentManager().beginTransaction()
+                    .hide(visibleFragment)
+                    .commitAllowingStateLoss();
+
+            visibleFragment = null;
+            currentFragmentState = FragmentState.NONE;
+
+            if (selectedButton != null) {
+                selectedButton.setSelected(false);
+                selectedButton = null;
+            }
+
+            // Clear all focus and hide keyboard
+            clearAllFocusAndKeyboard();
+
+            updateUIBasedOnState();
+        }
     }
+
+    /**
+     * Clear all focus from views and hide keyboard
+     */
+    private void clearAllFocusAndKeyboard() {
+        try {
+            // Method 1: Clear focus from current focus
+            View currentFocus = getCurrentFocus();
+            if (currentFocus != null) {
+                currentFocus.clearFocus();
+
+                // Hide keyboard
+              /*  InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.hideSoftInputFromWindow(currentFocus.getWindowToken(), 0);
+                }*/
+            }
+
+            // Method 2: Clear focus from root view
+            View rootView = findViewById(android.R.id.content);
+            if (rootView != null) {
+                rootView.clearFocus();
+            }
+
+            // Method 3: Clear focus from toolbar
+            if (toolbar != null) {
+                toolbar.clearFocus();
+            }
+
+            // Method 4: Remove focus from all focusable views in the window
+            if (getWindow() != null && getWindow().getDecorView() != null) {
+                View decorView = getWindow().getDecorView();
+                decorView.clearFocus();
+
+                // Find all focusable views and clear their focus
+                clearFocusFromViewGroup(decorView);
+            }
+
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error clearing focus", e);
+        }
+    }
+
+    /**
+     * Recursively clear focus from all views in a ViewGroup
+     */
+    private void clearFocusFromViewGroup(View view) {
+        if (view == null) return;
+
+        // Clear focus from this view
+        view.clearFocus();
+
+        // If it's a ViewGroup, recursively clear focus from children
+        if (view instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                View child = viewGroup.getChildAt(i);
+                clearFocusFromViewGroup(child);
+            }
+        }
+    }
+
 
     private void showFragmentAndHideCounter(Button button, Fragment fragment, FragmentState state, String colorHex) {
         if (visibleFragment != null && visibleFragment != fragment) {
@@ -1158,6 +1244,12 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
                // showAccessTypeDialog1(); // Show dialog to choose access type
                 toggleFragment(buttonA, aFragment, FragmentState.FRAGMENT_A, "#FFA500");
+                // Focus on appropriate field in Fragment A
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (aFragment != null && aFragment.isAdded() && aFragment.isVisible()) {
+                        focusOnFragmentAField();
+                    }
+                }, 200);
                 return true;
             }
 
@@ -1165,12 +1257,59 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
                 toggleFragment(buttonB, bFragment, FragmentState.FRAGMENT_B, "#00FF00");
                 // showAccessTypeDialog2();
+                // Focus on search field in Fragment B
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    if (bFragment != null && bFragment.isAdded() && bFragment.isVisible()) {
+                        focusOnFragmentBSearchField();
+                    }
+                }, 200);
 
                 return true;
             }
         }
 
         return super.dispatchKeyEvent(event);
+    }
+    /**
+     * Focus on the appropriate field in Fragment A
+     */
+    private void focusOnFragmentAField() {
+        if (aFragment == null || !aFragment.isAdded()) return;
+
+        View fragmentView = aFragment.getView();
+        if (fragmentView != null) {
+            // Try to focus on vehicleNoSpinner first
+            AutoCompleteTextView vehicleNoSpinner = fragmentView.findViewById(R.id.vehicleNoSpinner);
+            if (vehicleNoSpinner != null && vehicleNoSpinner.isEnabled()) {
+                vehicleNoSpinner.requestFocus();
+                Log.d("MainActivity", "Focus set on vehicleNoSpinner in Fragment A");
+                return;
+            }
+
+            // If vehicleNoSpinner is not available, try other fields
+            EditText grossEditText = fragmentView.findViewById(R.id.grossEditText);
+            if (grossEditText != null && grossEditText.isEnabled()) {
+                grossEditText.requestFocus();
+                Log.d("MainActivity", "Focus set on grossEditText in Fragment A");
+            }
+        }
+    }
+
+    /**
+     * Focus on search field in Fragment B
+     */
+    private void focusOnFragmentBSearchField() {
+        if (bFragment == null || !bFragment.isAdded()) return;
+
+        View fragmentView = bFragment.getView();
+        if (fragmentView != null) {
+            EditText searchSerialEditText = fragmentView.findViewById(R.id.searchSerialEditText);
+            if (searchSerialEditText != null) {
+                searchSerialEditText.requestFocus();
+                searchSerialEditText.setSelection(searchSerialEditText.getText().length());
+                Log.d("MainActivity", "Focus set on searchSerialEditText in Fragment B");
+            }
+        }
     }
 
     /**
@@ -1413,6 +1552,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
 
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
 
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -1542,6 +1682,8 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         });
 
         usernameInput.requestFocus();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        dialog.show();
     }
     private void showAdminLoginForF1() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -1585,6 +1727,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
 
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
 
         Button loginButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -1641,7 +1784,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         // Message text
         TextView messageText = new TextView(this);
-        messageText.setText("Enter admin credentials to access Master Data");
+        messageText.setText("Enter admin credentials to access Report Data");
         messageText.setTextSize(16);
         messageText.setPadding(0, 0, 0, 20);
         mainLayout.addView(messageText);
@@ -1773,6 +1916,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         });
 
         usernameInput.requestFocus();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
     }
     /**
@@ -1790,7 +1934,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         // Message text
         TextView messageText = new TextView(this);
-        messageText.setText("Enter admin credentials to access Master Data");
+        messageText.setText("Enter admin credentials to access Delete Dialog");
         messageText.setTextSize(16);
         messageText.setPadding(0, 0, 0, 20);
         mainLayout.addView(messageText);
@@ -1921,6 +2065,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         });
 
         usernameInput.requestFocus();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
     }
 
@@ -2068,6 +2213,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         });
 
         usernameInput.requestFocus();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
     }
     /**
@@ -2156,7 +2302,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         // Message text
         TextView messageText = new TextView(this);
-        messageText.setText("Enter admin credentials to access Master Data");
+        messageText.setText("Enter admin credentials to access Three Field Dialog");
         messageText.setTextSize(16);
         messageText.setPadding(0, 0, 0, 20);
         mainLayout.addView(messageText);
@@ -2288,6 +2434,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         });
 
         usernameInput.requestFocus();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
     }
 
@@ -2303,7 +2450,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         // Message text
         TextView messageText = new TextView(this);
-        messageText.setText("Enter admin credentials to access Master Data");
+        messageText.setText("Enter admin credentials to access Print Type Selection");
         messageText.setTextSize(16);
         messageText.setPadding(0, 0, 0, 20);
         mainLayout.addView(messageText);
@@ -2435,6 +2582,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         });
 
         usernameInput.requestFocus();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
     }
     // In your activity, check admin credentials
@@ -2636,6 +2784,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
 
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
 
         // Set register link click listener after dialog is created
@@ -2760,6 +2909,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
 
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
 
         // Set register link click listener after dialog is created
@@ -2884,6 +3034,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         builder.setNegativeButton("Cancel", (dialogInterface, which) -> dialogInterface.dismiss());
 
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
 
         // Set register link click listener after dialog is created
@@ -3033,6 +3184,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
 
         // Show the dialog
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
     }
 
@@ -3124,6 +3276,7 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
         builder.setNegativeButton("Cancel", null); // Set later to get button reference
 
         AlertDialog dialog = builder.create();
+        dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
         dialog.show();
 
         // Get the buttons from the dialog
@@ -3299,12 +3452,36 @@ public class MainActivity extends BaseActivity implements NavigationView.OnNavig
             visibleFragment = dFragment;
             currentFragmentState = FragmentState.FRAGMENT_D;
 
+
             updateUIBasedOnState();
             if (txtCounter != null) {
                 txtCounter.setTextColor(Color.parseColor("#FF5722"));
             }
             Toast.makeText(this, "Search & Print View Opened (F1)", Toast.LENGTH_SHORT).show();
+            focusOnSearchFieldInDFragment();
         }
+    }
+
+    /**
+     * Focus on search field in D-Fragment
+     */
+    private void focusOnSearchFieldInDFragment() {
+        // Give time for fragment to be fully rendered
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (dFragment != null && dFragment.isAdded() && dFragment.isVisible()) {
+                // Access the search field in DFragment
+                View searchField = dFragment.getView().findViewById(R.id.searchSerialEditText);
+                if (searchField instanceof EditText) {
+                    EditText searchEditText = (EditText) searchField;
+                    searchEditText.requestFocus();
+                    searchEditText.setSelection(searchEditText.getText().length());
+
+                    // Optional: Show keyboard
+                    // InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    // imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+                }
+            }
+        }, 200);
     }
 
     private void openMasterDataDialog() {
